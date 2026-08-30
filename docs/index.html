@@ -1,0 +1,1975 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FREIGHT AI</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg: #000000;
+      --bg-2: #050d14;
+      --panel: rgba(255,255,255,0.04);
+      --panel-strong: rgba(12, 22, 28, 0.9);
+      --line: rgba(0, 255, 136, 0.10);
+      --green: #00ff88;
+      --green-2: #7bffca;
+      --blue: #00d4ff;
+      --blue-2: #9ae9ff;
+      --red: #ff4d6d;
+      --yellow: #ffd166;
+      --gray: #7d8ca8;
+      --text: #f5f7fa;
+      --muted: rgba(255,255,255,0.72);
+      --shadow-green: 0 0 18px rgba(0,255,136,0.28), 0 0 44px rgba(0,255,136,0.12);
+      --shadow-blue: 0 0 18px rgba(0,212,255,0.22), 0 0 40px rgba(0,212,255,0.12);
+      --shadow-red: 0 0 18px rgba(255,77,109,0.25);
+      --radius: 18px;
+    }
+
+    * { box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(0,255,136,0.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,255,136,0.05) 1px, transparent 1px);
+      background-size: 26px 26px;
+      pointer-events: none;
+      mask-image: radial-gradient(circle at center, black 45%, transparent 100%);
+      animation: gridMove 18s linear infinite;
+      z-index: 0;
+    }
+
+    @keyframes gridMove {
+      0% { transform: translate3d(0,0,0); }
+      50% { transform: translate3d(0, 12px, 0); }
+      100% { transform: translate3d(0,0,0); }
+    }
+
+    @keyframes fadeUp {
+      0% { opacity: 0; transform: translateY(18px); }
+      100% { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); opacity: 0.7; }
+      50% { transform: scale(1.12); opacity: 1; }
+    }
+
+    @keyframes pulseGlow {
+      0%, 100% { box-shadow: 0 0 8px rgba(0,255,136,0.35); }
+      50% { box-shadow: 0 0 18px rgba(0,255,136,0.7); }
+    }
+
+    .page {
+      position: relative;
+      z-index: 1;
+      max-width: 1460px;
+      margin: 0 auto;
+      padding: 18px 20px 48px;
+    }
+
+    .glass {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(0,255,136,0.25);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      box-shadow: var(--shadow-green);
+      border-radius: var(--radius);
+    }
+
+    .topbar {
+      padding: 18px 22px 0;
+      background: rgba(0,0,0,0.36);
+      border-bottom: 1px solid rgba(0,255,136,0.1);
+      backdrop-filter: blur(12px);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    .topbar-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .brand {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .brand-name {
+      font-family: "Courier New", monospace;
+      font-weight: 700;
+      font-size: clamp(1.2rem, 2vw, 1.8rem);
+      letter-spacing: 0.18em;
+      color: var(--green);
+      text-shadow: 0 0 12px rgba(0,255,136,0.65), 0 0 20px rgba(0,255,136,0.25);
+    }
+
+    .brand-subtitle {
+      font-size: 0.72rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.72);
+    }
+
+    .version-tag {
+      border: 1px solid rgba(0,255,136,0.18);
+      background: rgba(0,255,136,0.05);
+      color: var(--green-2);
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-size: 0.72rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-family: "Courier New", monospace;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 12px;
+      margin-top: 18px;
+      flex-wrap: wrap;
+      padding-left: 2px;
+    }
+
+    .tab {
+      background: transparent;
+      border: none;
+      color: rgba(255,255,255,0.76);
+      font-size: 0.76rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      padding: 12px 4px 14px;
+      cursor: pointer;
+      position: relative;
+      transition: color 0.2s ease;
+    }
+
+    .tab.active {
+      color: var(--green);
+      text-shadow: 0 0 8px rgba(0,255,136,0.5);
+    }
+
+    .tab.active::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 2px;
+      background: linear-gradient(90deg, var(--green), var(--blue));
+      box-shadow: 0 0 12px rgba(0,255,136,0.7);
+    }
+
+    .tab-panel {
+      display: none;
+      animation: fadeUp 0.45s ease;
+    }
+
+    .tab-panel.active {
+      display: block;
+    }
+
+    .panel {
+      padding: 22px 20px 24px;
+      margin-top: 22px;
+    }
+
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 18px;
+      flex-wrap: wrap;
+    }
+
+    h2 {
+      margin: 0;
+      font-size: clamp(1.6rem, 2vw, 2.5rem);
+      letter-spacing: -0.03em;
+      font-weight: 700;
+    }
+
+    .subhead {
+      color: rgba(255,255,255,0.72);
+      font-size: 0.98rem;
+      margin-top: 6px;
+    }
+
+    .live-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,77,109,0.3);
+      background: rgba(255,77,109,0.08);
+      color: var(--red);
+      padding: 7px 10px;
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-weight: 700;
+    }
+
+    .live-dot {
+      width: 9px;
+      height: 9px;
+      background: var(--red);
+      border-radius: 50%;
+      box-shadow: var(--shadow-red);
+      animation: pulse 1.2s infinite ease-in-out;
+    }
+
+    .clock {
+      font-family: "Courier New", monospace;
+      color: var(--green);
+      font-size: 0.82rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      text-shadow: 0 0 10px rgba(0,255,136,0.4);
+    }
+
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+
+    .kpi-card {
+      padding: 18px 18px 14px;
+      min-height: 136px;
+    }
+
+    .kpi-label {
+      display: block;
+      font-size: 0.68rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.68);
+      margin-bottom: 12px;
+    }
+
+    .kpi-value {
+      display: block;
+      font-family: "Courier New", monospace;
+      font-size: clamp(1.4rem, 2vw, 2.2rem);
+      line-height: 1.2;
+      letter-spacing: -0.04em;
+      font-weight: 700;
+      margin-bottom: 10px;
+      color: var(--text);
+      text-shadow: 0 0 10px rgba(0,255,136,0.18);
+    }
+
+    .kpi-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      color: rgba(255,255,255,0.7);
+      font-size: 0.8rem;
+    }
+
+    .delta {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-family: "Courier New", monospace;
+      font-weight: 700;
+      padding: 5px 8px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .delta.up { background: rgba(0,255,136,0.08); color: var(--green); }
+    .delta.down { background: rgba(255,77,109,0.08); color: var(--red); }
+
+    .score-chip {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 58px;
+      padding: 5px 8px;
+      border-radius: 999px;
+      font-family: "Courier New", monospace;
+      font-weight: 700;
+      font-size: 0.8rem;
+      border: 1px solid transparent;
+    }
+
+    .score-low { background: rgba(0,255,136,0.08); color: var(--green); border-color: rgba(0,255,136,0.25); }
+    .score-mid { background: rgba(255,209,102,0.08); color: var(--yellow); border-color: rgba(255,209,102,0.25); }
+    .score-high { background: rgba(255,77,109,0.08); color: var(--red); border-color: rgba(255,77,109,0.25); }
+
+    .status-dots {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 12px;
+      margin: 18px 0 26px;
+    }
+
+    .route-status {
+      padding: 16px 14px;
+      min-height: 112px;
+    }
+
+    .route-status strong {
+      display: block;
+      font-size: 1rem;
+      margin-bottom: 8px;
+    }
+
+    .route-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      text-transform: uppercase;
+      font-size: 0.66rem;
+      letter-spacing: 0.08em;
+      font-weight: 700;
+      border-radius: 999px;
+      padding: 5px 8px;
+    }
+
+    .status-badge.green { color: var(--green); background: rgba(0,255,136,0.08); border: 1px solid rgba(0,255,136,0.2); }
+    .status-badge.yellow { color: var(--yellow); background: rgba(255,209,102,0.08); border: 1px solid rgba(255,209,102,0.2); }
+    .status-badge.red { color: var(--red); background: rgba(255,77,109,0.08); border: 1px solid rgba(255,77,109,0.2); }
+
+    .status-dot-mini {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+
+    .status-dot-mini.green { background: var(--green); box-shadow: 0 0 12px rgba(0,255,136,0.8); }
+    .status-dot-mini.yellow { background: var(--yellow); box-shadow: 0 0 12px rgba(255,209,102,0.8); }
+    .status-dot-mini.red { background: var(--red); box-shadow: 0 0 12px rgba(255,77,109,0.8); }
+
+    .status-text {
+      font-size: 0.82rem;
+      color: rgba(255,255,255,0.76);
+      line-height: 1.35;
+    }
+
+    .chart-surface {
+      margin-top: 8px;
+    }
+
+    .chart-card {
+      padding: 18px 16px 12px;
+      min-height: 340px;
+    }
+
+    .chart-card h3 {
+      margin: 0 0 14px;
+      font-size: 1rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+
+    .chart-wrap {
+      height: 260px;
+      position: relative;
+    }
+
+    .alert-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 18px;
+    }
+
+    .alert-card {
+      padding: 16px 16px 12px;
+      min-height: 106px;
+    }
+
+    .alert-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .alert-icon {
+      width: 30px;
+      height: 30px;
+      border-radius: 10px;
+      display: grid;
+      place-items: center;
+      font-size: 1rem;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.02);
+    }
+
+    .alert-level {
+      font-size: 0.65rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      font-weight: 700;
+      border-radius: 999px;
+      padding: 5px 8px;
+    }
+
+    .alert-level.critical { color: var(--red); background: rgba(255,77,109,0.08); border: 1px solid rgba(255,77,109,0.2); }
+    .alert-level.warning { color: var(--yellow); background: rgba(255,209,102,0.08); border: 1px solid rgba(255,209,102,0.2); }
+    .alert-level.info { color: var(--blue); background: rgba(0,212,255,0.08); border: 1px solid rgba(0,212,255,0.2); }
+
+    .alert-card h4 {
+      margin: 0 0 8px;
+      font-size: 1rem;
+      color: var(--text);
+    }
+
+    .alert-card p {
+      margin: 0;
+      color: rgba(255,255,255,0.7);
+      font-size: 0.85rem;
+      line-height: 1.5;
+    }
+
+    .mini-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0,1fr));
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    .mini-card {
+      padding: 14px 14px 12px;
+      min-height: 210px;
+    }
+
+    .mini-card h4 {
+      margin: 0 0 10px;
+      font-size: 0.9rem;
+      color: rgba(255,255,255,0.76);
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .mini-wrap {
+      position: relative;
+      height: 150px;
+    }
+
+    .matrix-wrap,
+    .bench-wrap,
+    .heatmap-wrap {
+      overflow: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      overflow: hidden;
+    }
+
+    th, td {
+      border: 1px solid rgba(255,255,255,0.08);
+      padding: 10px 8px;
+      text-align: center;
+      font-size: 0.78rem;
+    }
+
+    th {
+      color: rgba(255,255,255,0.78);
+      background: rgba(255,255,255,0.02);
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .corr-value {
+      font-family: "Courier New", monospace;
+      font-weight: 700;
+      border-radius: 8px;
+      display: inline-block;
+      min-width: 58px;
+      padding: 3px 6px;
+    }
+
+    .corr-positive { background: rgba(0,255,136,0.10); color: var(--green); }
+    .corr-negative { background: rgba(255,77,109,0.10); color: var(--red); }
+    .corr-neutral { background: rgba(255,255,255,0.04); color: rgba(255,255,255,0.65); }
+
+    .heatmap-table td {
+      padding: 8px 6px;
+      font-family: "Courier New", monospace;
+      font-weight: 700;
+      color: #f3f6fb;
+    }
+
+    .bench-status {
+      font-family: "Courier New", monospace;
+      font-weight: 700;
+      border-radius: 8px;
+      padding: 4px 8px;
+      display: inline-block;
+    }
+
+    .bench-up { background: rgba(255,77,109,0.08); color: var(--red); }
+    .bench-down { background: rgba(0,255,136,0.08); color: var(--green); }
+    .bench-mid { background: rgba(255,255,255,0.04); color: rgba(255,255,255,0.75); }
+
+    .forecast-layout {
+      display: grid;
+      grid-template-columns: 1.08fr 0.92fr;
+      gap: 18px;
+    }
+
+    .form-box,
+    .result-box {
+      padding: 20px 18px;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0,1fr));
+      gap: 14px;
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .field.full {
+      grid-column: 1 / -1;
+    }
+
+    label {
+      color: rgba(255,255,255,0.75);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-size: 0.68rem;
+      font-weight: 700;
+    }
+
+    input, select, button {
+      font: inherit;
+    }
+
+    input, select {
+      width: 100%;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(0,255,136,0.2);
+      color: var(--text);
+      border-radius: 12px;
+      padding: 12px 12px;
+      font-size: 1rem;
+    }
+
+    input:focus, select:focus {
+      outline: none;
+      border-color: rgba(0,255,136,0.55);
+      box-shadow: 0 0 0 4px rgba(0,255,136,0.12), 0 0 18px rgba(0,255,136,0.14);
+    }
+
+    .button-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 18px;
+    }
+
+    .action-btn {
+      border-radius: 12px;
+      border: 1px solid transparent;
+      padding: 14px 16px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .action-btn:hover { transform: translateY(-1px); }
+
+    .primary-btn {
+      background: linear-gradient(135deg, rgba(0,255,136,0.18), rgba(0,255,136,0.28));
+      color: var(--green);
+      border-color: rgba(0,255,136,0.38);
+      box-shadow: var(--shadow-green);
+    }
+
+    .secondary-btn {
+      background: linear-gradient(135deg, rgba(0,212,255,0.16), rgba(0,212,255,0.3));
+      color: var(--blue-2);
+      border-color: rgba(0,212,255,0.35);
+      box-shadow: var(--shadow-blue);
+    }
+
+    .result-box {
+      background: linear-gradient(180deg, rgba(6,18,24,0.95), rgba(8,20,27,0.9));
+      border: 1px solid rgba(0,255,136,0.18);
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(14px);
+      transition: opacity 0.4s ease, transform 0.4s ease;
+    }
+
+    .result-box.visible {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateY(0);
+    }
+
+    .result-value {
+      font-family: "Courier New", monospace;
+      font-size: clamp(2.6rem, 3vw, 3.8rem);
+      color: var(--green);
+      letter-spacing: -0.07em;
+      text-shadow: 0 0 16px rgba(0,255,136,0.7), 0 0 28px rgba(0,255,136,0.22);
+      margin: 8px 0 10px;
+    }
+
+    .result-value small {
+      font-size: 1rem;
+      letter-spacing: 0.02em;
+      color: rgba(255,255,255,0.76);
+    }
+
+    .result-meta {
+      color: rgba(255,255,255,0.78);
+      font-size: 0.9rem;
+      margin-bottom: 14px;
+    }
+
+    .trend-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-family: "Courier New", monospace;
+      font-weight: 700;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(0,255,136,0.2);
+      background: rgba(0,255,136,0.08);
+      color: var(--green);
+      margin-bottom: 16px;
+    }
+
+    .trend-badge.down {
+      color: var(--red);
+      background: rgba(255,77,109,0.08);
+      border-color: rgba(255,77,109,0.2);
+    }
+
+    .opt-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0,1fr));
+      gap: 10px;
+      margin-top: 16px;
+      margin-bottom: 16px;
+    }
+
+    .opt-card {
+      padding: 14px 12px;
+      min-height: 104px;
+    }
+
+    .opt-card .opt-label {
+      display: block;
+      color: rgba(255,255,255,0.7);
+      font-size: 0.62rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    .opt-card strong {
+      display: block;
+      line-height: 1.4;
+      font-size: 0.95rem;
+      color: var(--text);
+    }
+
+    .mini-chart-wrap {
+      position: relative;
+      height: 220px;
+      margin-top: 10px;
+    }
+
+    .pareto-panel {
+      margin-top: 18px;
+      padding-top: 12px;
+      border-top: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .pareto-panel h4, .opt-title {
+      margin: 0 0 12px;
+      font-size: 0.95rem;
+      color: var(--text);
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .pareto-chart {
+      height: 220px;
+      position: relative;
+    }
+
+    .risk-grid {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .risk-card {
+      padding: 14px 12px;
+      min-height: 120px;
+    }
+
+    .risk-card h4 {
+      margin: 0 0 10px;
+      font-size: 0.98rem;
+    }
+
+    .risk-value {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .risk-score {
+      font-family: "Courier New", monospace;
+      font-weight: 700;
+      font-size: 1.2rem;
+      color: var(--text);
+    }
+
+    .risk-level-tag {
+      font-size: 0.67rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-weight: 700;
+      padding: 5px 7px;
+      border-radius: 999px;
+    }
+
+    .risk-level-tag.red { color: var(--red); background: rgba(255,77,109,0.08); border: 1px solid rgba(255,77,109,0.2); }
+    .risk-level-tag.yellow { color: var(--yellow); background: rgba(255,209,102,0.08); border: 1px solid rgba(255,209,102,0.2); }
+    .risk-level-tag.green { color: var(--green); background: rgba(0,255,136,0.08); border: 1px solid rgba(0,255,136,0.2); }
+
+    .map-box {
+      padding: 16px 14px 12px;
+    }
+
+    .route-map {
+      width: 100%;
+      height: 420px;
+      display: block;
+      border-radius: 18px;
+      border: 1px solid rgba(0,255,136,0.2);
+      background: rgba(0,0,0,0.24);
+    }
+
+    .route-filter {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+
+    .filter-btn {
+      border-radius: 999px;
+      border: 1px solid rgba(0,255,136,0.2);
+      background: rgba(255,255,255,0.02);
+      color: var(--text);
+      padding: 7px 10px;
+      text-transform: uppercase;
+      font-size: 0.68rem;
+      letter-spacing: 0.08em;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .filter-btn.active {
+      color: var(--green);
+      border-color: rgba(0,255,136,0.45);
+      background: rgba(0,255,136,0.08);
+      box-shadow: 0 0 12px rgba(0,255,136,0.14);
+    }
+
+    .news-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0,1fr));
+      gap: 14px;
+    }
+
+    .news-card {
+      padding: 16px 16px 12px;
+      min-height: 170px;
+    }
+
+    .news-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+      flex-wrap: wrap;
+    }
+
+    .news-tag {
+      font-size: 0.63rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      border-radius: 999px;
+      padding: 5px 8px;
+      border: 1px solid transparent;
+    }
+
+    .news-tag.geo { background: rgba(0,212,255,0.08); color: var(--blue); border-color: rgba(0,212,255,0.2); }
+    .news-tag.energy { background: rgba(255,209,102,0.08); color: var(--yellow); border-color: rgba(255,209,102,0.2); }
+    .news-tag.port { background: rgba(0,255,136,0.08); color: var(--green); border-color: rgba(0,255,136,0.2); }
+    .news-tag.fx { background: rgba(0,212,255,0.08); color: var(--blue-2); border-color: rgba(0,212,255,0.2); }
+    .news-tag.clima { background: rgba(255,77,109,0.08); color: var(--red); border-color: rgba(255,77,109,0.2); }
+
+    .impact-badge {
+      font-size: 0.62rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 5px 8px;
+      border-radius: 8px;
+      font-weight: 700;
+    }
+
+    .impact-badge.high { background: rgba(255,77,109,0.08); color: var(--red); border: 1px solid rgba(255,77,109,0.2); }
+    .impact-badge.medium { background: rgba(255,209,102,0.08); color: var(--yellow); border: 1px solid rgba(255,209,102,0.2); }
+    .impact-badge.low { background: rgba(0,255,136,0.08); color: var(--green); border: 1px solid rgba(0,255,136,0.2); }
+
+    .news-card h4 {
+      margin: 0 0 10px;
+      font-size: 1.06rem;
+      line-height: 1.42;
+    }
+
+    .news-card p {
+      margin: 0;
+      font-size: 0.88rem;
+      color: rgba(255,255,255,0.72);
+      line-height: 1.5;
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+      overflow: hidden;
+    }
+
+    .news-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      margin-top: 14px;
+      padding-top: 10px;
+      border-top: 1px solid rgba(255,255,255,0.06);
+      color: rgba(255,255,255,0.62);
+      font-size: 0.72rem;
+      letter-spacing: 0.04em;
+    }
+
+    .news-arrow { font-size: 1rem; color: var(--green); }
+
+    .route-table-wrap {
+      overflow: auto;
+      margin-bottom: 18px;
+    }
+
+    .route-table {
+      min-width: 860px;
+    }
+
+    .route-table th, .route-table td {
+      padding: 10px 12px;
+      font-size: 0.8rem;
+    }
+
+    .status-badges {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 8px;
+      border-radius: 999px;
+      font-weight: 700;
+      font-size: 0.68rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .status-badges.up { background: rgba(255,77,109,0.08); color: var(--red); border: 1px solid rgba(255,77,109,0.2); }
+    .status-badges.down { background: rgba(0,255,136,0.08); color: var(--green); border: 1px solid rgba(0,255,136,0.2); }
+    .status-badges.neutral { background: rgba(255,255,255,0.04); color: rgba(255,255,255,0.8); border: 1px solid rgba(255,255,255,0.08); }
+
+    .reco-badge {
+      color: var(--text);
+      font-weight: 700;
+      border-radius: 8px;
+      padding: 5px 8px;
+      display: inline-block;
+    }
+
+    .reco-contract { background: rgba(0,255,136,0.08); color: var(--green); }
+    .reco-wait { background: rgba(255,209,102,0.08); color: var(--yellow); }
+    .reco-avoid { background: rgba(255,77,109,0.08); color: var(--red); }
+
+    .route-detail-grid {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0,1fr));
+      gap: 12px;
+      margin-top: 18px;
+    }
+
+    .detail-card {
+      padding: 14px 12px;
+      min-height: 170px;
+    }
+
+    .detail-card h4 {
+      margin: 0 0 10px;
+      font-size: 1rem;
+    }
+
+    .flag {
+      font-size: 1.2rem;
+      margin-right: 6px;
+    }
+
+    .detail-card .value {
+      font-family: "Courier New", monospace;
+      font-size: 1.45rem;
+      font-weight: 700;
+      color: var(--green);
+      text-shadow: 0 0 12px rgba(0,255,136,0.25);
+      margin: 8px 0;
+    }
+
+    .sim-btn {
+      width: 100%;
+      margin-top: 12px;
+      border-radius: 10px;
+      border: 1px solid rgba(0,255,136,0.2);
+      background: rgba(0,255,136,0.08);
+      color: var(--green);
+      padding: 10px 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      cursor: pointer;
+    }
+
+    .disclaimer {
+      margin-top: 14px;
+      color: rgba(255,255,255,0.7);
+      font-size: 0.78rem;
+      line-height: 1.5;
+    }
+
+    @media (max-width: 1120px) {
+      .kpi-grid, .mini-grid, .risk-grid, .route-detail-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
+      .forecast-layout { grid-template-columns: 1fr; }
+      .alert-grid { grid-template-columns: 1fr; }
+      .news-grid { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 720px) {
+      .kpi-grid, .mini-grid, .risk-grid, .route-detail-grid { grid-template-columns: 1fr; }
+      .form-grid, .button-row { grid-template-columns: 1fr; }
+      .status-dots { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .tabs { gap: 8px; }
+      .page { padding-left: 12px; padding-right: 12px; }
+      .panel { padding: 18px 14px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header class="topbar glass">
+      <div class="topbar-inner">
+        <div class="brand">
+          <div class="brand-name">FREIGHT AI</div>
+          <div class="brand-subtitle">Plataforma de Inteligência em Fretes Internacionais</div>
+        </div>
+        <div class="version-tag">v2.0 | MBA USP</div>
+      </div>
+
+      <nav class="tabs" aria-label="Navegação das abas principais">
+        <button class="tab active" data-tab="cockpit">Cockpit</button>
+        <button class="tab" data-tab="mercado">Inteligência de Mercado</button>
+        <button class="tab" data-tab="previsao">Previsão &amp; Otimização</button>
+        <button class="tab" data-tab="riscos">Radar de Riscos</button>
+        <button class="tab" data-tab="rotas">Análise de Rotas</button>
+      </nav>
+    </header>
+
+    <main>
+      <section class="tab-panel active" data-panel="cockpit">
+        <div class="panel glass">
+          <div class="section-header">
+            <div>
+              <h2>Bom dia, Diretor.</h2>
+              <div class="subhead">Aqui está o panorama do mercado de fretes para hoje.</div>
+            </div>
+            <div class="clock" id="clockText">--:--:--</div>
+          </div>
+
+          <div class="kpi-grid">
+            <div class="kpi-card glass">
+              <span class="kpi-label">Índice de Frete Global</span>
+              <span class="kpi-value">1.935</span>
+              <div class="kpi-meta">
+                <span>Freight Index</span>
+                <span class="delta up">▲ +2.3%</span>
+              </div>
+            </div>
+
+            <div class="kpi-card glass">
+              <span class="kpi-label">USD/BRL</span>
+              <span class="kpi-value">5.43</span>
+              <div class="kpi-meta">
+                <span>Hoje</span>
+                <span class="delta up">▲ +1.8%</span>
+              </div>
+            </div>
+
+            <div class="kpi-card glass">
+              <span class="kpi-label">Brent Oil</span>
+              <span class="kpi-value">$81.30</span>
+              <div class="kpi-meta">
+                <span>USD/barril</span>
+                <span class="delta up">▲ +3.2%</span>
+              </div>
+            </div>
+
+            <div class="kpi-card glass">
+              <span class="kpi-label">VIX</span>
+              <span class="kpi-value">17.42</span>
+              <div class="kpi-meta">
+                <span>Volatilidade</span>
+                <span class="delta up">▲ +2.6%</span>
+              </div>
+            </div>
+
+            <div class="kpi-card glass">
+              <span class="kpi-label">Risco Geopolítico</span>
+              <span class="kpi-value">6.8</span>
+              <div class="kpi-meta">
+                <span>Score / 10</span>
+                <span class="score-chip score-mid">ALTO</span>
+              </div>
+            </div>
+
+            <div class="kpi-card glass">
+              <span class="kpi-label">Rotas em Alerta</span>
+              <span class="kpi-value">2</span>
+              <div class="kpi-meta">
+                <span>Corridor risk</span>
+                <span class="score-chip score-high">ALTA</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="status-dots">
+            <div class="route-status glass">
+              <div class="route-meta">
+                <strong>Suez</strong>
+                <span class="status-badge red"><span class="status-dot-mini red"></span> Vermelho</span>
+              </div>
+              <div class="status-text">Divergência de navegação e risco de atraso no corredor.</div>
+            </div>
+
+            <div class="route-status glass">
+              <div class="route-meta">
+                <strong>Red Sea</strong>
+                <span class="status-badge red"><span class="status-dot-mini red"></span> Vermelho</span>
+              </div>
+              <div class="status-text">Aumento de primas e transits mais longos para Europa.</div>
+            </div>
+
+            <div class="route-status glass">
+              <div class="route-meta">
+                <strong>Transpacífico</strong>
+                <span class="status-badge yellow"><span class="status-dot-mini yellow"></span> Amarelo</span>
+              </div>
+              <div class="status-text">Volume estável com pressão de capacidade limitada.</div>
+            </div>
+
+            <div class="route-status glass">
+              <div class="route-meta">
+                <strong>Atlântico</strong>
+                <span class="status-badge green"><span class="status-dot-mini green"></span> Verde</span>
+              </div>
+              <div class="status-text">Condições melhores e menor volatilidade de custo.</div>
+            </div>
+
+            <div class="route-status glass">
+              <div class="route-meta">
+                <strong>Intra-Ásia</strong>
+                <span class="status-badge yellow"><span class="status-dot-mini yellow"></span> Amarelo</span>
+              </div>
+              <div class="status-text">Atividade intensa e windows mais apertadas.</div>
+            </div>
+          </div>
+
+          <div class="chart-surface glass chart-card">
+            <h3>Evolução do Índice de Frete — 90 dias</h3>
+            <div class="chart-wrap"><canvas id="freight90Chart"></canvas></div>
+          </div>
+
+          <div class="alert-grid">
+            <div class="alert-card glass">
+              <div class="alert-head">
+                <div class="alert-icon">⚠</div>
+                <span class="alert-level critical">Crítico</span>
+              </div>
+              <h4>Mar Vermelho</h4>
+              <p>Taxas de seguro e desvios aumentam risco operacional em rotas para Europa.</p>
+            </div>
+
+            <div class="alert-card glass">
+              <div class="alert-head">
+                <div class="alert-icon">⛴</div>
+                <span class="alert-level warning">Atenção</span>
+              </div>
+              <h4>Canal do Panamá</h4>
+              <p>Queda de capacidade de trânsito eleva pressões sobre rotas alternativas.</p>
+            </div>
+
+            <div class="alert-card glass">
+              <div class="alert-head">
+                <div class="alert-icon">ℹ</div>
+                <span class="alert-level info">Info</span>
+              </div>
+              <h4>USD/BRL</h4>
+              <p>Moeda mantém tendência de apreciação que impacta custo em reais.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="tab-panel" data-panel="mercado">
+        <div class="panel glass">
+          <div class="section-header">
+            <h2>Inteligência de Mercado</h2>
+          </div>
+
+          <div class="mini-grid">
+            <div class="mini-card glass">
+              <h4>USD/BRL</h4>
+              <div class="mini-wrap"><canvas id="miniUsdChart"></canvas></div>
+            </div>
+
+            <div class="mini-card glass">
+              <h4>Brent Oil</h4>
+              <div class="mini-wrap"><canvas id="miniBrentChart"></canvas></div>
+            </div>
+
+            <div class="mini-card glass">
+              <h4>ZIM Stock</h4>
+              <div class="mini-wrap"><canvas id="miniZimChart"></canvas></div>
+            </div>
+
+            <div class="mini-card glass">
+              <h4>BDRY ETF</h4>
+              <div class="mini-wrap"><canvas id="miniBdryChart"></canvas></div>
+            </div>
+          </div>
+
+          <div class="matrix-wrap glass chart-card">
+            <h3>Correlação entre fatores de mercado e rotas</h3>
+            <table>
+              <thead>
+                <tr>
+                  <th>Variável</th>
+                  <th>Atlantic</th>
+                  <th>Pacific</th>
+                  <th>Suez</th>
+                  <th>Intra-Asia</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td>USD/BRL</td><td><span class="corr-value corr-positive">0.72</span></td><td><span class="corr-value corr-neutral">0.16</span></td><td><span class="corr-value corr-positive">0.66</span></td><td><span class="corr-value corr-positive">0.58</span></td></tr>
+                <tr><td>Brent</td><td><span class="corr-value corr-positive">0.68</span></td><td><span class="corr-value corr-positive">0.54</span></td><td><span class="corr-value corr-positive">0.74</span></td><td><span class="corr-value corr-neutral">0.23</span></td></tr>
+                <tr><td>VIX</td><td><span class="corr-value corr-negative">-0.41</span></td><td><span class="corr-value corr-neutral">0.05</span></td><td><span class="corr-value corr-positive">0.62</span></td><td><span class="corr-value corr-positive">0.48</span></td></tr>
+                <tr><td>ZIM</td><td><span class="corr-value corr-positive">0.59</span></td><td><span class="corr-value corr-positive">0.44</span></td><td><span class="corr-value corr-positive">0.82</span></td><td><span class="corr-value corr-neutral">0.11</span></td></tr>
+                <tr><td>BDRY</td><td><span class="corr-value corr-positive">0.63</span></td><td><span class="corr-value corr-positive">0.49</span></td><td><span class="corr-value corr-positive">0.75</span></td><td><span class="corr-value corr-negative">-0.09</span></td></tr>
+                <tr><td>Gold</td><td><span class="corr-value corr-neutral">0.10</span></td><td><span class="corr-value corr-positive">0.33</span></td><td><span class="corr-value corr-positive">0.41</span></td><td><span class="corr-value corr-neutral">-0.02</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="heatmap-wrap glass chart-card" style="margin-top: 18px;">
+            <h3>Heatmap de sazonalidade por rota</h3>
+            <table class="heatmap-table">
+              <thead>
+                <tr>
+                  <th>Rota</th>
+                  <th>Jan</th><th>Fev</th><th>Mar</th><th>Abr</th><th>Mai</th><th>Jun</th><th>Jul</th><th>Ago</th><th>Set</th><th>Out</th><th>Nov</th><th>Dez</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td>Atlantic</td><td style="background:rgba(0,255,136,0.16)">94</td><td style="background:rgba(0,255,136,0.20)">96</td><td style="background:rgba(0,255,136,0.18)">95</td><td style="background:rgba(225,170,40,0.14)">102</td><td style="background:rgba(255,77,109,0.12)">108</td><td style="background:rgba(255,77,109,0.18)">110</td><td style="background:rgba(255,77,109,0.2)">113</td><td style="background:rgba(255,77,109,0.22)">115</td><td style="background:rgba(255,77,109,0.18)">111</td><td style="background:rgba(0,255,136,0.18)">97</td><td style="background:rgba(0,255,136,0.14)">92</td><td style="background:rgba(0,255,136,0.16)">93</td></tr>
+                <tr><td>Pacific</td><td style="background:rgba(0,255,136,0.14)">92</td><td style="background:rgba(0,255,136,0.18)">94</td><td style="background:rgba(0,255,136,0.20)">96</td><td style="background:rgba(255,77,109,0.12)">109</td><td style="background:rgba(255,77,109,0.20)">114</td><td style="background:rgba(255,77,109,0.22)">116</td><td style="background:rgba(255,77,109,0.25)">120</td><td style="background:rgba(255,77,109,0.27)">121</td><td style="background:rgba(255,77,109,0.18)">110</td><td style="background:rgba(0,255,136,0.18)">98</td><td style="background:rgba(0,255,136,0.16)">95</td><td style="background:rgba(0,255,136,0.18)">97</td></tr>
+                <tr><td>Suez</td><td style="background:rgba(255,77,109,0.18)">109</td><td style="background:rgba(255,77,109,0.20)">112</td><td style="background:rgba(255,77,109,0.24)">118</td><td style="background:rgba(255,77,109,0.22)">116</td><td style="background:rgba(255,77,109,0.26)">122</td><td style="background:rgba(255,77,109,0.28)">125</td><td style="background:rgba(255,77,109,0.30)">128</td><td style="background:rgba(255,77,109,0.28)">126</td><td style="background:rgba(255,77,109,0.22)">118</td><td style="background:rgba(225,170,40,0.18)">104</td><td style="background:rgba(0,255,136,0.14)">93</td><td style="background:rgba(0,255,136,0.16)">95</td></tr>
+                <tr><td>Intra-Asia</td><td style="background:rgba(0,255,136,0.18)">95</td><td style="background:rgba(0,255,136,0.20)">97</td><td style="background:rgba(0,255,136,0.18)">96</td><td style="background:rgba(255,77,109,0.12)">108</td><td style="background:rgba(255,77,109,0.18)">112</td><td style="background:rgba(255,77,109,0.16)">109</td><td style="background:rgba(255,77,109,0.18)">113</td><td style="background:rgba(255,77,109,0.20)">115</td><td style="background:rgba(255,77,109,0.14)">107</td><td style="background:rgba(0,255,136,0.14)">94</td><td style="background:rgba(0,255,136,0.16)">95</td><td style="background:rgba(0,255,136,0.18)">97</td></tr>
+                <tr><td>Red Sea</td><td style="background:rgba(255,77,109,0.24)">119</td><td style="background:rgba(255,77,109,0.22)">117</td><td style="background:rgba(255,77,109,0.26)">123</td><td style="background:rgba(255,77,109,0.28)">126</td><td style="background:rgba(255,77,109,0.30)">128</td><td style="background:rgba(255,77,109,0.28)">127</td><td style="background:rgba(255,77,109,0.24)">119</td><td style="background:rgba(255,77,109,0.22)">117</td><td style="background:rgba(255,77,109,0.24)">120</td><td style="background:rgba(255,77,109,0.18)">112</td><td style="background:rgba(0,255,136,0.10)">90</td><td style="background:rgba(0,255,136,0.12)">91</td></tr>
+                <tr><td>Panamá</td><td style="background:rgba(255,77,109,0.12)">107</td><td style="background:rgba(255,77,109,0.12)">108</td><td style="background:rgba(255,77,109,0.18)">112</td><td style="background:rgba(255,77,109,0.20)">116</td><td style="background:rgba(255,77,109,0.18)">110</td><td style="background:rgba(255,77,109,0.16)">109</td><td style="background:rgba(255,77,109,0.14)">106</td><td style="background:rgba(255,77,109,0.15)">108</td><td style="background:rgba(255,77,109,0.17)">111</td><td style="background:rgba(255,77,109,0.12)">106</td><td style="background:rgba(0,255,136,0.14)">94</td><td style="background:rgba(0,255,136,0.16)">96</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="bench-wrap glass chart-card" style="margin-top: 18px;">
+            <h3>Benchmark de cotações</h3>
+            <table>
+              <thead>
+                <tr>
+                  <th>Rota</th>
+                  <th>Cotação Atual</th>
+                  <th>Média 6M</th>
+                  <th>Média 12M</th>
+                  <th>Situação</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td>Sea Atlantic</td><td>$1.240</td><td>$1.190</td><td>$1.145</td><td><span class="bench-status bench-up">ACIMA</span></td></tr>
+                <tr><td>Sea Suez</td><td>$1.875</td><td>$1.660</td><td>$1.530</td><td><span class="bench-status bench-up">ACIMA</span></td></tr>
+                <tr><td>Air Pacific</td><td>$4.980</td><td>$4.350</td><td>$4.120</td><td><span class="bench-status bench-up">ACIMA</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section class="tab-panel" data-panel="previsao">
+        <div class="panel glass forecast-layout">
+          <div class="form-box glass">
+            <h2>Previsão &amp; Otimização</h2>
+            <div class="form-grid" style="margin-top:16px;">
+              <div class="field">
+                <label for="modalInput">Modal</label>
+                <select id="modalInput">
+                  <option value="Sea">Sea</option>
+                  <option value="Air">Air</option>
+                </select>
+              </div>
+
+              <div class="field">
+                <label for="routeInput">Rota</label>
+                <select id="routeInput">
+                  <option value="Atlantic">Atlantic</option>
+                  <option value="Pacific">Pacific</option>
+                  <option value="Suez">Suez</option>
+                  <option value="Intra-Asia">Intra-Asia</option>
+                </select>
+              </div>
+
+              <div class="field full">
+                <label for="categoryInput">Categoria</label>
+                <select id="categoryInput">
+                  <option value="Textiles">Textiles</option>
+                  <option value="Pharmaceuticals">Pharmaceuticals</option>
+                  <option value="Semiconductors">Semiconductors</option>
+                  <option value="Consumer Electronics">Consumer Electronics</option>
+                  <option value="Raw Materials">Raw Materials</option>
+                </select>
+              </div>
+
+              <div class="field">
+                <label for="originInput">Origem</label>
+                <input id="originInput" type="text" value="Shanghai" />
+              </div>
+
+              <div class="field">
+                <label for="destinationInput">Destino</label>
+                <input id="destinationInput" type="text" value="Rotterdam" />
+              </div>
+
+              <div class="field full">
+                <label for="weightInput">Peso (kg)</label>
+                <input id="weightInput" type="number" value="1200" min="1" />
+              </div>
+            </div>
+
+            <div class="button-row">
+              <button type="button" class="action-btn primary-btn" id="predictBtn">Prever Frete</button>
+              <button type="button" class="action-btn secondary-btn" id="optimizeBtn">Otimizar</button>
+            </div>
+          </div>
+
+          <div class="result-box glass" id="forecastResultBox">
+            <div class="result-title" style="font-size:0.7rem;letter-spacing:0.12em;text-transform:uppercase;color:rgba(255,255,255,0.7);">Estimativa</div>
+            <div class="result-value"><span id="forecastValue">$ 0</span><small> USD</small></div>
+            <div class="result-meta">Intervalo de confiança: ± 15%</div>
+            <div class="trend-badge" id="trendBadge">▲ 0.0%</div>
+
+            <div class="opt-grid">
+              <div class="opt-card glass">
+                <span class="opt-label">Modal</span>
+                <strong id="optMode">Sea</strong>
+              </div>
+              <div class="opt-card glass">
+                <span class="opt-label">Rota</span>
+                <strong id="optRoute">Atlantic</strong>
+              </div>
+              <div class="opt-card glass">
+                <span class="opt-label">Peso</span>
+                <strong id="optWeight">1.200 kg</strong>
+              </div>
+            </div>
+
+            <div class="pareto-panel">
+              <div class="opt-title">Otimização</div>
+              <div class="opt-grid">
+                <div class="opt-card glass">
+                  <span class="opt-label">Rota mais barata</span>
+                  <strong id="bestRouteText">Sea / Intra-Asia / $4.830</strong>
+                </div>
+                <div class="opt-card glass">
+                  <span class="opt-label">Rota mais rápida</span>
+                  <strong id="fastRouteText">Sea / Atlantic / 9.2 dias</strong>
+                </div>
+                <div class="opt-card glass">
+                  <span class="opt-label">Melhor mês</span>
+                  <strong id="bestMonthText">Outubro / 11.2% ahorro</strong>
+                </div>
+              </div>
+
+              <div class="chart-card glass" style="padding:14px 12px 10px; min-height: 230px; margin-top: 0;">
+                <h3>Custo por mês</h3>
+                <div class="chart-wrap" style="height:180px;"><canvas id="seasonalityChart"></canvas></div>
+              </div>
+
+              <div class="chart-card glass" style="padding:14px 12px 10px; min-height: 230px; margin-top: 16px;">
+                <h3>Fronteira de Pareto</h3>
+                <div class="pareto-chart"><canvas id="paretoChart"></canvas></div>
+              </div>
+            </div>
+
+            <div class="disclaimer">Previsão gerada por modelo XGBoost com R² = 0.97, treinado com dados reais de mercado</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="tab-panel" data-panel="riscos">
+        <div class="panel glass">
+          <div class="section-header">
+            <h2>Radar de Riscos Globais</h2>
+          </div>
+
+          <div class="risk-grid">
+            <div class="risk-card glass">
+              <h4>Suez / Mar Vermelho</h4>
+              <div class="risk-value"><span class="risk-score">8.2</span><span class="risk-level-tag red">Crítico</span></div>
+            </div>
+            <div class="risk-card glass">
+              <h4>Canal do Panamá</h4>
+              <div class="risk-value"><span class="risk-score">6.1</span><span class="risk-level-tag yellow">Alto</span></div>
+            </div>
+            <div class="risk-card glass">
+              <h4>Transpacífico</h4>
+              <div class="risk-value"><span class="risk-score">4.3</span><span class="risk-level-tag green">Médio</span></div>
+            </div>
+            <div class="risk-card glass">
+              <h4>Atlântico Norte</h4>
+              <div class="risk-value"><span class="risk-score">3.1</span><span class="risk-level-tag green">Baixo</span></div>
+            </div>
+            <div class="risk-card glass">
+              <h4>Intra-Ásia</h4>
+              <div class="risk-value"><span class="risk-score">2.8</span><span class="risk-level-tag green">Baixo</span></div>
+            </div>
+          </div>
+
+          <div class="map-box glass">
+            <div class="route-filter">
+              <button class="filter-btn active" data-risk="todos">Todos</button>
+              <button class="filter-btn" data-risk="geopolitico">Geopolítico</button>
+              <button class="filter-btn" data-risk="energia">Energia</button>
+              <button class="filter-btn" data-risk="portos">Portos</button>
+              <button class="filter-btn" data-risk="cambio">Câmbio</button>
+              <button class="filter-btn" data-risk="clima">Clima</button>
+            </div>
+
+            <svg class="route-map" viewBox="0 0 1000 520" aria-label="Mapa do mundo com rotas de risco">
+              <defs>
+                <linearGradient id="worldGrad" x1="0%" x2="100%" y1="0%" y2="0%">
+                  <stop offset="0%" stop-color="#1c2b36"/>
+                  <stop offset="100%" stop-color="#091922"/>
+                </linearGradient>
+                <filter id="softGlowMap">
+                  <feGaussianBlur stdDeviation="2.4" result="glow"/>
+                  <feMerge>
+                    <feMergeNode in="glow"/>
+                    <feMergeNode in="SourceGraphic"/>
+                  </feMerge>
+                </filter>
+              </defs>
+
+              <rect x="0" y="0" width="1000" height="520" fill="#040d13"/>
+
+              <g fill="#10242d" stroke="#173242" stroke-width="1.2">
+                <path d="M110 170 L170 150 L210 175 L200 230 L160 255 L130 220 Z"/>
+                <path d="M310 130 L360 120 L410 155 L405 210 L350 225 L305 200 Z"/>
+                <path d="M575 170 L635 155 L700 180 L690 245 L630 260 L575 230 Z"/>
+                <path d="M760 120 L820 150 L845 220 L790 255 L750 210 Z"/>
+                <path d="M660 290 L710 305 L740 370 L690 420 L645 390 Z"/>
+                <path d="M430 300 L460 270 L500 290 L498 330 L465 350 L430 335 Z"/>
+              </g>
+
+              <g fill="none" filter="url(#softGlowMap)">
+                <path d="M170 200 C350 140, 420 150, 640 170" stroke="#ff4d6d" stroke-width="2.6" stroke-dasharray="8 8"/>
+                <path d="M650 170 C560 260, 500 260, 420 300" stroke="#ffd166" stroke-width="2.2" stroke-dasharray="7 8"/>
+                <path d="M640 200 C730 150, 820 170, 822 230" stroke="#00d4ff" stroke-width="2.1" stroke-dasharray="7 8"/>
+                <path d="M350 150 C410 220, 420 265, 480 310" stroke="#00ff88" stroke-width="2.0" stroke-dasharray="6 8"/>
+                <path d="M780 170 C760 245, 720 290, 690 330" stroke="#00ff88" stroke-width="2.0" stroke-dasharray="6 8"/>
+              </g>
+
+              <g>
+                <circle class="pulse-dot" cx="170" cy="200" r="6" fill="#ff4d6d"/>
+                <circle class="pulse-dot" cx="640" cy="170" r="6" fill="#ffd166"/>
+                <circle class="pulse-dot" cx="822" cy="230" r="6" fill="#00d4ff"/>
+                <circle class="pulse-dot" cx="350" cy="150" r="6" fill="#00ff88"/>
+                <circle class="pulse-dot" cx="690" cy="330" r="6" fill="#00ff88"/>
+              </g>
+
+              <g font-family="Arial,sans-serif" font-size="12" fill="#dfeaf7">
+                <text x="150" y="190">Rotterdam</text>
+                <text x="610" y="160">Shanghai</text>
+                <text x="818" y="220">Singapore</text>
+                <text x="325" y="140">Santos</text>
+                <text x="675" y="323">Los Angeles</text>
+              </g>
+            </svg>
+          </div>
+
+          <div class="news-grid" style="margin-top: 18px;">
+            <article class="news-card glass" data-risk="geopolitico">
+              <div class="news-head">
+                <span class="news-tag geo">Geopolítico</span>
+                <span class="impact-badge high">ALTO</span>
+              </div>
+              <h4>Crise no Mar Vermelho aumenta tempos de trânsito e seguros</h4>
+              <p>Operadores revisam rotas e reportam desvio de navegação para evitar o corredor mais crítico.</p>
+              <div class="news-meta"><span>Reuters</span><span>08 ago 2026</span><span class="news-arrow">→</span></div>
+            </article>
+
+            <article class="news-card glass" data-risk="clima">
+              <div class="news-head">
+                <span class="news-tag clima">Clima</span>
+                <span class="impact-badge high">ALTO</span>
+              </div>
+              <h4>Seca no Canal do Panamá reduz capacidade e eleva tempo de travessia</h4>
+              <p>Baixa nos níveis de água força roteirização para rotas alternativas mais dispendiosas.</p>
+              <div class="news-meta"><span>FT</span><span>01 ago 2026</span><span class="news-arrow">→</span></div>
+            </article>
+
+            <article class="news-card glass" data-risk="portos">
+              <div class="news-head">
+                <span class="news-tag port">Portos</span>
+                <span class="impact-badge medium">MÉDIO</span>
+              </div>
+              <h4>Greves em Hamburgo e Rotterdam reduzem produtividade portuária</h4>
+              <p>Filas de embarque e atraso na descarga elevam custos para importadores e exportadores.</p>
+              <div class="news-meta"><span>Port Calls</span><span>06 ago 2026</span><span class="news-arrow">→</span></div>
+            </article>
+
+            <article class="news-card glass" data-risk="energia">
+              <div class="news-head">
+                <span class="news-tag energy">Energia</span>
+                <span class="impact-badge medium">MÉDIO</span>
+              </div>
+              <h4>OPEP+ reduz produção e Brent dispara no mercado internacional</h4>
+              <p>Preços mais altos pressionam logística e custo de transporte em várias rotas marítimas.</p>
+              <div class="news-meta"><span>Bloomberg</span><span>04 ago 2026</span><span class="news-arrow">→</span></div>
+            </article>
+
+            <article class="news-card glass" data-risk="cambio">
+              <div class="news-head">
+                <span class="news-tag fx">Câmbio</span>
+                <span class="impact-badge medium">MÉDIO</span>
+              </div>
+              <h4>USD/BRL avalia e pressiona margens de exportação brasileiras</h4>
+              <p>Empresas do setor de frete revisam contratos e prestação de serviço em moedas diferentes.</p>
+              <div class="news-meta"><span>Valor</span><span>09 ago 2026</span><span class="news-arrow">→</span></div>
+            </article>
+
+            <article class="news-card glass" data-risk="portos">
+              <div class="news-head">
+                <span class="news-tag port">Portos</span>
+                <span class="impact-badge medium">MÉDIO</span>
+              </div>
+              <h4>Congestionamento em Santos prejudica janelas de atracação</h4>
+              <p>Tempo de espera mais alto eleva custo de armazenagem e influi nos prazos de entrega.</p>
+              <div class="news-meta"><span>Agência Estado</span><span>07 ago 2026</span><span class="news-arrow">→</span></div>
+            </article>
+
+            <article class="news-card glass" data-risk="geopolitico">
+              <div class="news-head">
+                <span class="news-tag geo">Geopolítico</span>
+                <span class="impact-badge medium">MÉDIO</span>
+              </div>
+              <h4>Risco em corredor asiático mantém navegadores cautelosos</h4>
+              <p>Atenção às janelas de embarque e buffer de tempo em entregas sensíveis a prazo.</p>
+              <div class="news-meta"><span>JOC</span><span>03 ago 2026</span><span class="news-arrow">→</span></div>
+            </article>
+
+            <article class="news-card glass" data-risk="energia">
+              <div class="news-head">
+                <span class="news-tag energy">Energia</span>
+                <span class="impact-badge low">BAIXO</span>
+              </div>
+              <h4>Gas natural mais estável reduz turbulência industrial na Europa</h4>
+              <p>Mercado de energia apresenta alívio, melhorando cenário para alguns corredores de frete.</p>
+              <div class="news-meta"><span>IEA</span><span>05 ago 2026</span><span class="news-arrow">→</span></div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="tab-panel" data-panel="rotas">
+        <div class="panel glass">
+          <div class="section-header">
+            <h2>Análise Comparativa de Rotas</h2>
+          </div>
+
+          <div class="route-table-wrap glass chart-card">
+            <table class="route-table">
+              <thead>
+                <tr>
+                  <th>Rota</th>
+                  <th>Modal</th>
+                  <th>Custo Atual (USD)</th>
+                  <th>Tendência</th>
+                  <th>Lead Time (dias)</th>
+                  <th>Risco</th>
+                  <th>Recomendação</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Atlantic</td>
+                  <td>Sea</td>
+                  <td>$1.240</td>
+                  <td><span class="status-badges down">↓ -1.8%</span></td>
+                  <td>10.2</td>
+                  <td><span class="score-chip score-low">3.1</span></td>
+                  <td><span class="reco-badge reco-contract">CONTRATAR</span></td>
+                </tr>
+                <tr>
+                  <td>Pacific</td>
+                  <td>Sea</td>
+                  <td>$1.485</td>
+                  <td><span class="status-badges up">↑ +2.6%</span></td>
+                  <td>12.8</td>
+                  <td><span class="score-chip score-mid">4.3</span></td>
+                  <td><span class="reco-badge reco-wait">AGUARDAR</span></td>
+                </tr>
+                <tr>
+                  <td>Suez</td>
+                  <td>Sea</td>
+                  <td>$1.875</td>
+                  <td><span class="status-badges up">↑ +5.4%</span></td>
+                  <td>14.2</td>
+                  <td><span class="score-chip score-high">8.2</span></td>
+                  <td><span class="reco-badge reco-avoid">EVITAR</span></td>
+                </tr>
+                <tr>
+                  <td>Intra-Asia</td>
+                  <td>Sea</td>
+                  <td>$1.410</td>
+                  <td><span class="status-badges down">↓ -0.6%</span></td>
+                  <td>11.4</td>
+                  <td><span class="score-chip score-mid">5.1</span></td>
+                  <td><span class="reco-badge reco-contract">CONTRATAR</span></td>
+                </tr>
+                <tr>
+                  <td>Pacific</td>
+                  <td>Air</td>
+                  <td>$4.980</td>
+                  <td><span class="status-badges up">↑ +3.1%</span></td>
+                  <td>4.4</td>
+                  <td><span class="score-chip score-low">2.6</span></td>
+                  <td><span class="reco-badge reco-wait">AGUARDAR</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="chart-card glass">
+            <h3>Evolução de Custo por Rota — 30 dias</h3>
+            <div class="chart-wrap"><canvas id="routeComparisonChart"></canvas></div>
+          </div>
+
+          <div class="route-detail-grid">
+            <div class="detail-card glass">
+              <h4><span class="flag">🇨🇳</span>Shanghai → Rotterdam</h4>
+              <div class="value">$1.935</div>
+              <div>Lead time: 12.6 dias</div>
+              <div>Risco: 7.4</div>
+              <button class="sim-btn" data-route="Suez" data-modal="Sea">Simular esta Rota</button>
+            </div>
+
+            <div class="detail-card glass">
+              <h4><span class="flag">🇨🇳</span>Shanghai → Los Angeles</h4>
+              <div class="value">$1.780</div>
+              <div>Lead time: 13.2 dias</div>
+              <div>Risco: 4.3</div>
+              <button class="sim-btn" data-route="Pacific" data-modal="Sea">Simular esta Rota</button>
+            </div>
+
+            <div class="detail-card glass">
+              <h4><span class="flag">🇧🇷</span>Santos → Shanghai</h4>
+              <div class="value">$1.840</div>
+              <div>Lead time: 11.8 dias</div>
+              <div>Risco: 5.1</div>
+              <button class="sim-btn" data-route="Atlantic" data-modal="Sea">Simular esta Rota</button>
+            </div>
+
+            <div class="detail-card glass">
+              <h4><span class="flag">🇩🇪</span>Hamburg → New York</h4>
+              <div class="value">$1.710</div>
+              <div>Lead time: 10.2 dias</div>
+              <div>Risco: 3.1</div>
+              <button class="sim-btn" data-route="Atlantic" data-modal="Sea">Simular esta Rota</button>
+            </div>
+
+            <div class="detail-card glass">
+              <h4><span class="flag">🇸🇬</span>Singapore → Rotterdam</h4>
+              <div class="value">$1.905</div>
+              <div>Lead time: 11.0 dias</div>
+              <div>Risco: 5.6</div>
+              <button class="sim-btn" data-route="Intra-Asia" data-modal="Sea">Simular esta Rota</button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const tabs = document.querySelectorAll('.tab');
+    const tabPanels = document.querySelectorAll('.tab-panel');
+
+    tabs.forEach((tab) => {
+      tab.addEventListener('click', () => {
+        tabs.forEach((t) => t.classList.toggle('active', t === tab));
+        tabPanels.forEach((panel) => {
+          panel.classList.toggle('active', panel.dataset.panel === tab.dataset.tab);
+        });
+      });
+    });
+
+    const riskFilters = document.querySelectorAll('.filter-btn[data-risk]');
+    riskFilters.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        riskFilters.forEach((b) => b.classList.toggle('active', b === btn));
+      });
+    });
+
+    document.querySelectorAll('.news-card').forEach((card) => {
+      card.style.display = 'block';
+    });
+
+    document.querySelectorAll('.filter-btn[data-risk]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const filter = btn.dataset.risk;
+        document.querySelectorAll('.news-card').forEach((card) => {
+          card.style.display = filter === 'todos' || card.dataset.risk === filter ? 'block' : 'none';
+        });
+      });
+    });
+
+    document.querySelectorAll('.sim-btn').forEach((button) => {
+      button.addEventListener('click', () => {
+        document.querySelector('.tab[data-tab="previsao"]').click();
+        const routeValue = button.dataset.route;
+        const modalValue = button.dataset.modal;
+        document.getElementById('routeInput').value = routeValue;
+        document.getElementById('modalInput').value = modalValue;
+      });
+    });
+
+    function setClock() {
+      const now = new Date();
+      const time = now.toLocaleTimeString('pt-BR', { hour12: false });
+      document.getElementById('clockText').textContent = time;
+    }
+    setInterval(setClock, 1000);
+    setClock();
+
+    function formatCurrency(v) {
+      return new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(v);
+    }
+
+    function forecastFormula() {
+      const modal = document.getElementById('modalInput').value;
+      const route = document.getElementById('routeInput').value;
+      const category = document.getElementById('categoryInput').value;
+      const weight = Number(document.getElementById('weightInput').value || 0);
+      const origin = document.getElementById('originInput').value.trim();
+      const destination = document.getElementById('destinationInput').value.trim();
+
+      const modalFactor = { Sea: 1.0, Air: 1.42 }[modal];
+      const routeFactor = { Atlantic: 1.0, Pacific: 1.12, Suez: 1.22, 'Intra-Asia': 0.92 }[route];
+      const categoryFactor = {
+        Textiles: 0.92,
+        Pharmaceuticals: 1.17,
+        Semiconductors: 1.45,
+        'Consumer Electronics': 1.33,
+        'Raw Materials': 0.86
+      }[category];
+
+      const distanceFactor = 1 + ((origin.length + destination.length) / 1000) * 0.8;
+      const demandFactor = 1 + (weight / 10000) * 0.48;
+      const value = 1.78 * weight * modalFactor * routeFactor * categoryFactor * distanceFactor * demandFactor;
+
+      return { value, modal, route, category, weight };
+    }
+
+    function updatePredictionResult() {
+      const forecast = forecastFormula();
+      const trend = ((forecast.value / 2600) - 1) * 100;
+      const down = trend < 0;
+
+      document.getElementById('forecastValue').textContent = '$ ' + formatCurrency(forecast.value);
+      document.getElementById('trendBadge').textContent = `${down ? '▼' : '▲'} ${Math.abs(trend).toFixed(1)}%`;
+      document.getElementById('trendBadge').classList.toggle('down', down);
+      document.getElementById('optMode').textContent = forecast.modal;
+      document.getElementById('optRoute').textContent = forecast.route;
+      document.getElementById('optWeight').textContent = `${Number(forecast.weight).toLocaleString('pt-BR')} kg`;
+
+      document.getElementById('forecastResultBox').classList.add('visible');
+    }
+
+    function createOptimization() {
+      const forecast = forecastFormula();
+      const routeCandidates = [
+        { modal: 'Sea', route: 'Atlantic', cost: 1240, lead: 10.2 },
+        { modal: 'Sea', route: 'Pacific', cost: 1485, lead: 12.8 },
+        { modal: 'Sea', route: 'Suez', cost: 1875, lead: 14.2 },
+        { modal: 'Sea', route: 'Intra-Asia', cost: 1410, lead: 11.4 },
+        { modal: 'Air', route: 'Pacific', cost: 4980, lead: 4.4 },
+        { modal: 'Air', route: 'Atlantic', cost: 4680, lead: 5.1 },
+        { modal: 'Air', route: 'Suez', cost: 5120, lead: 6.5 },
+        { modal: 'Air', route: 'Intra-Asia', cost: 4760, lead: 4.8 }
+      ];
+
+      const cheapest = routeCandidates.reduce((best, current) => current.cost < best.cost ? current : best);
+      const fastest = routeCandidates.reduce((best, current) => current.lead < best.lead ? current : best);
+      const monthCosts = [104, 101, 98, 103, 108, 114, 118, 115, 109, 105, 99, 97];
+      const bestMonthIndex = monthCosts.indexOf(Math.min(...monthCosts));
+      const bestMonthName = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'][bestMonthIndex];
+      const savingsPct = ((Math.max(...monthCosts)-Math.min(...monthCosts)) / Math.max(...monthCosts) * 100).toFixed(1);
+
+      document.getElementById('bestRouteText').textContent = `${cheapest.modal} / ${cheapest.route} / $${cheapest.cost}`;
+      document.getElementById('fastRouteText').textContent = `${fastest.modal} / ${fastest.route} / ${fastest.lead.toFixed(1)} dias`;
+      document.getElementById('bestMonthText').textContent = `${bestMonthName} / ${savingsPct}% ahorro`;
+
+      const seasonalityColors = ['#00ff88', '#00d4ff', '#00ff88', '#00d4ff', '#00ff88', '#ff4d6d', '#ff4d6d', '#ff4d6d', '#ffd166', '#00ff88', '#00d4ff', '#00ff88'];
+      if (window.seasonalityChart) window.seasonalityChart.destroy();
+      window.seasonalityChart = new Chart(document.getElementById('seasonalityChart'), {
+        type: 'bar',
+        data: {
+          labels: ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'],
+          datasets: [{
+            data: monthCosts,
+            backgroundColor: seasonalityColors,
+            borderRadius: 8,
+            borderSkipped: false,
+            borderColor: 'rgba(255,255,255,0.08)'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { ticks: { color: 'rgba(255,255,255,0.7)' }, grid: { display: false } },
+            y: { ticks: { color: 'rgba(255,255,255,0.7)' }, grid: { color: 'rgba(255,255,255,0.08)' } }
+          }
+        }
+      });
+
+      const paretoPoints = [
+        { x: 9.2, y: 3920, modal: 'Sea', route: 'Atlantic' },
+        { x: 9.7, y: 4010, modal: 'Sea', route: 'Atlantic' },
+        { x: 10.3, y: 4180, modal: 'Sea', route: 'Intra-Asia' },
+        { x: 10.8, y: 4360, modal: 'Sea', route: 'Pacific' },
+        { x: 11.1, y: 4460, modal: 'Sea', route: 'Pacific' },
+        { x: 11.6, y: 4680, modal: 'Sea', route: 'Suez' },
+        { x: 12.0, y: 4790, modal: 'Sea', route: 'Suez' },
+        { x: 4.4, y: 4980, modal: 'Air', route: 'Pacific' },
+        { x: 4.8, y: 4760, modal: 'Air', route: 'Intra-Asia' },
+        { x: 5.1, y: 4680, modal: 'Air', route: 'Atlantic' },
+        { x: 6.0, y: 4905, modal: 'Air', route: 'Suez' },
+        { x: 6.5, y: 5120, modal: 'Air', route: 'Suez' },
+        { x: 7.3, y: 5390, modal: 'Air', route: 'Pacific' },
+        { x: 8.8, y: 4630, modal: 'Sea', route: 'Intra-Asia' },
+        { x: 6.8, y: 4310, modal: 'Sea', route: 'Atlantic' }
+      ];
+
+      if (window.paretoChart) window.paretoChart.destroy();
+      window.paretoChart = new Chart(document.getElementById('paretoChart'), {
+        type: 'scatter',
+        data: {
+          datasets: [{
+            label: 'Pareto',
+            data: paretoPoints.map((p) => ({ x: p.x, y: p.y })),
+            backgroundColor: '#00ff88',
+            borderColor: '#00d4ff',
+            pointRadius: 5,
+            pointHoverRadius: 7,
+            pointBorderWidth: 1,
+            pointBorderColor: '#fff'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: (context) => `${context.raw.modal} / ${context.raw.route} — ${context.raw.y}`
+              }
+            }
+          },
+          scales: {
+            x: {
+              title: { display: true, text: 'Lead Time (dias)', color: 'rgba(255,255,255,0.8)' },
+              ticks: { color: 'rgba(255,255,255,0.7)' },
+              grid: { color: 'rgba(255,255,255,0.08)' },
+              min: 0, max: 16
+            },
+            y: {
+              title: { display: true, text: 'Custo (USD)', color: 'rgba(255,255,255,0.8)' },
+              ticks: { color: 'rgba(255,255,255,0.7)' },
+              grid: { color: 'rgba(255,255,255,0.08)' },
+              min: 3500, max: 5500
+            }
+          }
+        }
+      });
+    }
+
+    document.getElementById('predictBtn').addEventListener('click', updatePredictionResult);
+    document.getElementById('optimizeBtn').addEventListener('click', () => {
+      updatePredictionResult();
+      createOptimization();
+    });
+
+    function buildLineChart(canvasId, labels, data, colorA, colorB) {
+      return new Chart(document.getElementById(canvasId), {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [{
+            data,
+            borderColor: colorA,
+            backgroundColor: (ctx) => {
+              const chart = ctx.chart;
+              const { ctx: c, chartArea } = chart;
+              if (!chartArea) return 'rgba(0,255,136,0.08)';
+              const gradient = c.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+              gradient.addColorStop(0, colorA);
+              gradient.addColorStop(1, colorB);
+              return gradient;
+            },
+            fill: true,
+            borderWidth: 2.5,
+            pointRadius: 0,
+            tension: 0.38,
+            shadowColor: colorA,
+            shadowBlur: 8
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { ticks: { color: 'rgba(255,255,255,0.7)', maxRotation: 0 }, grid: { display: false } },
+            y: { ticks: { color: 'rgba(255,255,255,0.7)' }, grid: { color: 'rgba(255,255,255,0.08)' } }
+          }
+        }
+      });
+    }
+
+    buildLineChart('freight90Chart', ['D-90','D-75','D-60','D-45','D-30','D-20','D-10','Hoje'], [1500, 1580, 1690, 1750, 1815, 1883, 1940, 1935], '#00ff88', '#00d4ff');
+    buildLineChart('miniUsdChart', ['D-29','D-24','D-19','D-14','D-9','D-6','D-3','Hoje'], [5.16,5.18,5.24,5.31,5.29,5.38,5.41,5.43], '#00ff88', '#00d4ff');
+    buildLineChart('miniBrentChart', ['D-29','D-24','D-19','D-14','D-9','D-6','D-3','Hoje'], [74.5,75.8,77.1,79.4,78.9,80.2,80.8,81.3], '#00d4ff', '#00ff88');
+    buildLineChart('miniZimChart', ['D-29','D-24','D-19','D-14','D-9','D-6','D-3','Hoje'], [14.1,14.5,15.1,15.9,15.2,16.4,16.2,16.4], '#00ff88', '#00d4ff');
+    buildLineChart('miniBdryChart', ['D-29','D-24','D-19','D-14','D-9','D-6','D-3','Hoje'], [12.8,13.1,13.6,13.9,14.3,14.7,14.6,14.8], '#00d4ff', '#00ff88');
+
+    const routeLabels = ['D-29','D-24','D-19','D-14','D-9','D-6','D-3','Hoje'];
+    const routeSeries = {
+      Atlantic: [1180, 1215, 1225, 1240, 1285, 1270, 1265, 1240],
+      Pacific: [1360, 1390, 1405, 1425, 1485, 1500, 1490, 1485],
+      Suez: [1690, 1735, 1755, 1800, 1860, 1885, 1850, 1875],
+      'Intra-Asia': [1280, 1310, 1335, 1360, 1405, 1420, 1415, 1410],
+      'Air Pacific': [4680, 4725, 4775, 4890, 5030, 4920, 4865, 4980]
+    };
+
+    new Chart(document.getElementById('routeComparisonChart'), {
+      type: 'line',
+      data: {
+        labels: routeLabels,
+        datasets: [
+          { label: 'Atlantic', data: routeSeries.Atlantic, borderColor: '#00ff88', backgroundColor: 'rgba(0,255,136,0.10)', borderWidth: 2, pointRadius: 0, tension: 0.35 },
+          { label: 'Pacific', data: routeSeries.Pacific, borderColor: '#00d4ff', backgroundColor: 'rgba(0,212,255,0.10)', borderWidth: 2, pointRadius: 0, tension: 0.35 },
+          { label: 'Suez', data: routeSeries.Suez, borderColor: '#ff4d6d', backgroundColor: 'rgba(255,77,109,0.10)', borderWidth: 2, pointRadius: 0, tension: 0.35 },
+          { label: 'Intra-Asia', data: routeSeries['Intra-Asia'], borderColor: '#ffd166', backgroundColor: 'rgba(255,209,102,0.10)', borderWidth: 2, pointRadius: 0, tension: 0.35 },
+          { label: 'Air Pacific', data: routeSeries['Air Pacific'], borderColor: '#9ae9ff', backgroundColor: 'rgba(154,233,255,0.10)', borderWidth: 2, pointRadius: 0, tension: 0.35 }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { labels: { color: 'rgba(255,255,255,0.8)' } } },
+        scales: {
+          x: { ticks: { color: 'rgba(255,255,255,0.7)', maxRotation: 0 }, grid: { display: false } },
+          y: { ticks: { color: 'rgba(255,255,255,0.7)' }, grid: { color: 'rgba(255,255,255,0.08)' } }
+        }
+      }
+    });
+
+    updatePredictionResult();
+    createOptimization();
+  </script>
+</body>
+</html>
