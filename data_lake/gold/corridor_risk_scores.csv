@@ -1,0 +1,9 @@
+corridor,composite_score,geopolitical_risk,economic_risk,climate_risk,operational_risk,market_risk,last_updated,enso_phase,gpr_latest,vix_latest
+Suez/Red Sea,4.12,2.4,3.79,5.12,10.0,0.81,2026-09-01 00:01 UTC,El Nino,152.7,14.9
+Panama Canal,3.82,2.4,3.79,5.12,8.0,0.81,2026-09-01 00:01 UTC,El Nino,152.7,14.9
+Cape of Good Hope,3.73,2.4,3.79,5.12,7.4,0.81,2026-09-01 00:01 UTC,El Nino,152.7,14.9
+Strait of Malacca,3.62,2.4,3.79,4.87,7.0,0.81,2026-09-01 00:01 UTC,El Nino,152.7,14.9
+Intra-Asia,3.61,2.4,3.79,6.32,5.0,0.81,2026-09-01 00:01 UTC,El Nino,152.7,14.9
+North Atlantic,3.49,2.4,3.79,5.73,5.0,0.81,2026-09-01 00:01 UTC,El Nino,152.7,14.9
+Transpacific,3.41,2.4,3.79,5.28,5.0,0.81,2026-09-01 00:01 UTC,El Nino,152.7,14.9
+South America East Coast,3.12,2.4,3.79,3.85,5.0,0.81,2026-09-01 00:01 UTC,El Nino,152.7,14.9

@@ -1,0 +1,179 @@
+{
+  "route_optimization": {
+    "best_modal": "Sea",
+    "best_route": "Intra-Asia",
+    "predicted_cost": 5183.270962911734,
+    "savings_vs_worst": 4309.596279275636
+  },
+  "time_window_optimization": {
+    "best_month": 6,
+    "predicted_cost": 5363.201831744277,
+    "worst_month": 4,
+    "potential_savings_pct": 33.20542071013734,
+    "monthly_costs": [
+      {
+        "month": 1,
+        "cost": 5930.247483953004
+      },
+      {
+        "month": 2,
+        "cost": 7658.451618914972
+      },
+      {
+        "month": 3,
+        "cost": 7945.3793364531075
+      },
+      {
+        "month": 4,
+        "cost": 8029.396829449369
+      },
+      {
+        "month": 5,
+        "cost": 7247.53717935858
+      },
+      {
+        "month": 6,
+        "cost": 5363.201831744277
+      },
+      {
+        "month": 7,
+        "cost": 6509.746856776451
+      },
+      {
+        "month": 8,
+        "cost": 7397.671665705904
+      },
+      {
+        "month": 9,
+        "cost": 7268.5726835057985
+      },
+      {
+        "month": 10,
+        "cost": 6125.846267552925
+      },
+      {
+        "month": 11,
+        "cost": 6853.424276262434
+      },
+      {
+        "month": 12,
+        "cost": 5554.249532230135
+      }
+    ]
+  },
+  "modal_mix_optimization": {
+    "sea_weight_kg": 4999.99999999992,
+    "air_weight_kg": 7.980816008057445e-11,
+    "total_cost": 16768.18494504636,
+    "efficiency_score": 0.2981837340407612
+  },
+  "pareto_frontier": {
+    "pareto_points": [
+      {
+        "cost": 3329.211140888815,
+        "lead_time": 10.479999999999999,
+        "modal": "Sea",
+        "route": "Intra-Asia",
+        "weight_kg": 300.0
+      },
+      {
+        "cost": 3442.7190297938882,
+        "lead_time": 9.379999999999999,
+        "modal": "Sea",
+        "route": "Atlantic",
+        "weight_kg": 300.0
+      },
+      {
+        "cost": 3559.625933721727,
+        "lead_time": 10.723157894736842,
+        "modal": "Sea",
+        "route": "Intra-Asia",
+        "weight_kg": 705.2631578947369
+      },
+      {
+        "cost": 3680.989706678655,
+        "lead_time": 9.623157894736842,
+        "modal": "Sea",
+        "route": "Atlantic",
+        "weight_kg": 705.2631578947369
+      },
+      {
+        "cost": 3790.040726554639,
+        "lead_time": 10.966315789473683,
+        "modal": "Sea",
+        "route": "Intra-Asia",
+        "weight_kg": 1110.5263157894738
+      },
+      {
+        "cost": 3855.8453133691555,
+        "lead_time": 11.18,
+        "modal": "Sea",
+        "route": "Pacific",
+        "weight_kg": 300.0
+      },
+      {
+        "cost": 3919.260383563421,
+        "lead_time": 9.866315789473683,
+        "modal": "Sea",
+        "route": "Atlantic",
+        "weight_kg": 1110.5263157894738
+      },
+      {
+        "cost": 4020.4555193875503,
+        "lead_time": 11.209473684210526,
+        "modal": "Sea",
+        "route": "Intra-Asia",
+        "weight_kg": 1515.7894736842104
+      },
+      {
+        "cost": 4062.4084551567876,
+        "lead_time": 11.879999999999999,
+        "modal": "Sea",
+        "route": "Suez",
+        "weight_kg": 300.0
+      },
+      {
+        "cost": 4122.708471480094,
+        "lead_time": 11.423157894736843,
+        "modal": "Sea",
+        "route": "Pacific",
+        "weight_kg": 705.2631578947369
+      },
+      {
+        "cost": 4157.5310604481865,
+        "lead_time": 10.109473684210526,
+        "modal": "Sea",
+        "route": "Atlantic",
+        "weight_kg": 1515.7894736842104
+      },
+      {
+        "cost": 4250.870312220462,
+        "lead_time": 11.452631578947367,
+        "modal": "Sea",
+        "route": "Intra-Asia",
+        "weight_kg": 1921.0526315789473
+      },
+      {
+        "cost": 4343.5678538808115,
+        "lead_time": 12.123157894736842,
+        "modal": "Sea",
+        "route": "Suez",
+        "weight_kg": 705.2631578947369
+      },
+      {
+        "cost": 4389.571629591032,
+        "lead_time": 11.666315789473684,
+        "modal": "Sea",
+        "route": "Pacific",
+        "weight_kg": 1110.5263157894738
+      },
+      {
+        "cost": 4395.801737332953,
+        "lead_time": 10.352631578947367,
+        "modal": "Sea",
+        "route": "Atlantic",
+        "weight_kg": 1921.0526315789473
+      }
+    ]
+  }
+}

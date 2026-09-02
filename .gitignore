@@ -5,3 +5,6 @@ __pycache__/
 data_lake/raw/
 data_lake/silver/
 data_lake/bronze/
+.env
+data_lake/.env
+data_lake/api.log

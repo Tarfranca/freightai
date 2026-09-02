@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>FREIGHT AI | API Monitor</title>
+<style>
+  :root {
+    --bg: #000000;
+    --panel: rgba(255,255,255,0.04);
+    --line: rgba(0,255,136,0.2);
+    --green: #00ff88;
+    --blue: #00d4ff;
+    --red: #ff4d6d;
+    --yellow: #ffd166;
+    --text: #f2f7ff;
+    --muted: rgba(242,247,255,0.7);
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; font-family: system-ui, -apple-system, Segoe UI, sans-serif; background: var(--bg); color: var(--text); }
+  body { padding: 24px 18px 60px; max-width: 1200px; margin: 0 auto; }
+  .glass { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); backdrop-filter: blur(10px); }
+  header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px; padding: 18px 22px; margin-bottom: 20px; }
+  h1 { font-family: 'Courier New', monospace; font-size: 1.5rem; letter-spacing: 0.1em; color: var(--green); margin: 0; text-shadow: 0 0 10px rgba(0,255,136,0.5); }
+  .subtitle { color: var(--muted); font-size: 0.85rem; margin-top: 4px; }
+  .controls { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .controls label { color: var(--muted); font-size: 0.8rem; display: flex; align-items: center; gap: 6px; }
+  select, input[type="number"] { background: rgba(255,255,255,0.04); border: 1px solid rgba(0,255,136,0.18); color: var(--text); border-radius: 8px; padding: 6px 10px; font-size: 0.85rem; }
+  button { border: none; cursor: pointer; padding: 10px 16px; border-radius: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.78rem; background: linear-gradient(135deg, var(--green), #00c78a); color: #02180f; }
+  button:hover { filter: brightness(1.08); }
+  button.secondary { background: rgba(255,255,255,0.06); color: var(--text); border: 1px solid rgba(255,255,255,0.12); }
+
+  .summary-grid { display: grid; grid-template-columns: repeat(4, minmax(140px, 1fr)); gap: 14px; margin-bottom: 20px; }
+  .summary-card { padding: 16px; text-align: center; }
+  .summary-value { font-family: 'Courier New', monospace; font-size: 1.8rem; font-weight: 700; }
+  .summary-label { color: var(--muted); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; margin-top: 4px; }
+  .summary-card.ok .summary-value { color: var(--green); }
+  .summary-card.fail .summary-value { color: var(--red); }
+  .summary-card.pending .summary-value { color: var(--yellow); }
+  .summary-card.info .summary-value { color: var(--blue); }
+
+  table { width: 100%; border-collapse: collapse; }
+  th, td { padding: 12px 14px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.06); font-size: 0.86rem; }
+  th { color: var(--muted); text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.08em; }
+  .status-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 8px; box-shadow: 0 0 10px currentColor; }
+  .status-pass { color: var(--green); }
+  .status-fail { color: var(--red); }
+  .status-pending { color: var(--yellow); animation: pulse 1.2s infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+  .badge { display: inline-flex; align-items: center; padding: 4px 10px; border-radius: 999px; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; }
+  .badge.pass { background: rgba(0,255,136,0.08); color: var(--green); border: 1px solid rgba(0,255,136,0.25); }
+  .badge.fail { background: rgba(255,77,109,0.08); color: var(--red); border: 1px solid rgba(255,77,109,0.25); }
+  .badge.pending { background: rgba(255,209,102,0.08); color: var(--yellow); border: 1px solid rgba(255,209,102,0.25); }
+  .mono { font-family: 'Courier New', monospace; }
+  .detail { color: var(--muted); font-size: 0.78rem; max-width: 360px; overflow-wrap: anywhere; }
+  .table-wrap { overflow-x: auto; padding: 6px; }
+  footer { margin-top: 18px; color: var(--muted); font-size: 0.78rem; text-align: center; }
+  .method-badge { font-family: 'Courier New', monospace; font-size: 0.7rem; padding: 2px 6px; border-radius: 6px; background: rgba(0,212,255,0.1); color: var(--blue); }
+</style>
+</head>
+<body>
+  <header class="glass">
+    <div>
+      <h1>FREIGHT AI // API MONITOR</h1>
+      <div class="subtitle">Testes automatizados contra todos os endpoints do Flask API — atualiza a cada <span id="intervalLabel">30</span>s</div>
+    </div>
+    <div class="controls">
+      <label>Intervalo (s) <input id="intervalInput" type="number" min="5" max="600" value="30" /></label>
+      <label>API Base <input id="apiBaseInput" type="text" value="http://127.0.0.1:5000" style="width:220px;" /></label>
+      <button id="runNowBtn">Testar Agora</button>
+      <button id="toggleAutoBtn" class="secondary">Pausar Auto-Teste</button>
+    </div>
+  </header>
+
+  <div class="summary-grid">
+    <div class="summary-card glass pending" id="summaryOk"><div class="summary-value">--</div><div class="summary-label">Passou</div></div>
+    <div class="summary-card glass pending" id="summaryFail"><div class="summary-value">--</div><div class="summary-label">Falhou</div></div>
+    <div class="summary-card glass pending" id="summaryLatency"><div class="summary-value">--</div><div class="summary-label">Latência média (ms)</div></div>
+    <div class="summary-card glass pending" id="summaryLastRun"><div class="summary-value">--</div><div class="summary-label">Última execução</div></div>
+  </div>
+
+  <div class="glass table-wrap">
+    <table>
+      <thead>
+        <tr><th>Status</th><th>Endpoint</th><th>Método</th><th>Latência</th><th>Detalhe</th></tr>
+      </thead>
+      <tbody id="resultsBody"></tbody>
+    </table>
+  </div>
+
+  <footer>FreightAI API Monitor — TCC MBA USP. Roda inteiramente no navegador, sem dependências externas.</footer>
+
+  <script>
+    let API_BASE = document.getElementById('apiBaseInput').value.trim();
+    let intervalSeconds = Number(document.getElementById('intervalInput').value) || 30;
+    let timerId = null;
+    let autoRunning = true;
+
+    function buildTests() {
+      return [
+        {
+          name: 'Health Check',
+          method: 'GET',
+          path: '/api/health',
+          run: async () => {
+            const data = await httpGet('/api/health');
+            if (data.status !== 'ok') throw new Error('status != ok');
+            if (!data.model_loaded) throw new Error('modelo não carregado');
+            if (!data.data_loaded) throw new Error('dados de mercado não carregados');
+            return 'model_loaded=true, data_loaded=true';
+          }
+        },
+        {
+          name: 'Market Snapshot',
+          method: 'GET',
+          path: '/api/market',
+          run: async () => {
+            const data = await httpGet('/api/market');
+            const tickers = Object.keys(data);
+            if (tickers.length === 0) throw new Error('nenhum ticker retornado');
+            return tickers.length + ' tickers: ' + tickers.join(', ');
+          }
+        },
+        {
+          name: 'Market History',
+          method: 'GET',
+          path: '/api/market/history?ticker=usd_brl&days=10',
+          run: async () => {
+            const data = await httpGet('/api/market/history?ticker=usd_brl&days=10');
+            if (!Array.isArray(data) || data.length === 0) throw new Error('histórico vazio');
+            return data.length + ' pontos retornados';
+          }
+        },
+        {
+          name: 'Predict (XGBoost)',
+          method: 'POST',
+          path: '/api/predict',
+          run: async () => {
+            const data = await httpPost('/api/predict', { modal: 'Sea', route: 'Atlantic', category: 'Textiles', weight_kg: 1000 });
+            if (typeof data.predicted_cost_usd !== 'number' || data.predicted_cost_usd <= 0) throw new Error('predicted_cost_usd inválido');
+            return '$' + Math.round(data.predicted_cost_usd).toLocaleString('en-US') + ' (R²=' + data.model_r2 + ')';
+          }
+        },
+        {
+          name: 'Optimize (scipy)',
+          method: 'POST',
+          path: '/api/optimize',
+          run: async () => {
+            const data = await httpPost('/api/optimize', { modal: 'Sea', route: 'Atlantic', category: 'Textiles', weight_kg: 1000 });
+            if (!data.cheapest_route || typeof data.cheapest_route.predicted_cost !== 'number') throw new Error('cheapest_route ausente');
+            if (!Array.isArray(data.pareto_points) || data.pareto_points.length === 0) throw new Error('pareto_points vazio');
+            return 'cheapest=' + data.cheapest_route.best_modal + '/' + data.cheapest_route.best_route + ', ' + data.pareto_points.length + ' pontos pareto';
+          }
+        },
+        {
+          name: 'Correlations',
+          method: 'GET',
+          path: '/api/correlations',
+          run: async () => {
+            const data = await httpGet('/api/correlations');
+            if (!Array.isArray(data) || data.length === 0) throw new Error('correlações vazias');
+            return data.length + ' variáveis';
+          }
+        },
+        {
+          name: 'Routes (aggregate)',
+          method: 'GET',
+          path: '/api/routes',
+          run: async () => {
+            const data = await httpGet('/api/routes');
+            if (!Array.isArray(data) || data.length === 0) throw new Error('nenhuma rota retornada');
+            return data.length + ' combinações rota/modal';
+          }
+        },
+        {
+          name: 'Freight Index',
+          method: 'GET',
+          path: '/api/freight_index?days=30',
+          run: async () => {
+            const data = await httpGet('/api/freight_index?days=30');
+            if (!data.history || data.history.length === 0) throw new Error('série histórica vazia');
+            return 'índice atual: ' + data.last_value + ' (' + data.history.length + ' pontos)';
+          }
+        },
+        {
+          name: 'Route Pairs',
+          method: 'GET',
+          path: '/api/routes/pairs?limit=6',
+          run: async () => {
+            const data = await httpGet('/api/routes/pairs?limit=6');
+            if (!Array.isArray(data) || data.length === 0) throw new Error('nenhum par de rota retornado');
+            return data.length + ' pares de cidades';
+          }
+        },
+        {
+          name: 'Seasonality',
+          method: 'GET',
+          path: '/api/seasonality',
+          run: async () => {
+            const data = await httpGet('/api/seasonality');
+            if (!Array.isArray(data) || data.length === 0) throw new Error('sazonalidade vazia');
+            return data.length + ' rotas mapeadas';
+          }
+        },
+        {
+          name: 'Risk Radar',
+          method: 'GET',
+          path: '/api/risks',
+          run: async () => {
+            const data = await httpGet('/api/risks');
+            if (!Array.isArray(data) || data.length === 0) throw new Error('radar de riscos vazio');
+            return data.length + ' rotas, pior: ' + data[0].route + ' (' + data[0].risk_score + '/10)';
+          }
+        },
+        {
+          name: 'Feature Importance',
+          method: 'GET',
+          path: '/api/feature_importance',
+          run: async () => {
+            const data = await httpGet('/api/feature_importance');
+            if (!Array.isArray(data) || data.length === 0) throw new Error('feature importance vazia');
+            return 'top: ' + data[0].variable + ' (' + data[0].importance_pct + '%)';
+          }
+        },
+        {
+          name: 'FRIDAY (Gemini proxy)',
+          method: 'POST',
+          path: '/api/friday',
+          run: async () => {
+            const data = await httpPost('/api/friday', { message: 'teste automatizado do monitor' });
+            if (typeof data.reply !== 'string' || !data.reply) throw new Error('resposta ausente');
+            return data.configured ? 'Gemini configurado, respondeu OK' : 'endpoint OK (GEMINI_API_KEY não configurada)';
+          }
+        }
+      ];
+    }
+
+    async function httpGet(path) {
+      const res = await fetch(API_BASE + path);
+      const body = await safeJson(res);
+      if (!res.ok) throw new Error('HTTP ' + res.status + (body && body.error ? ': ' + body.error : ''));
+      return body;
+    }
+
+    async function httpPost(path, payload) {
+      const res = await fetch(API_BASE + path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      const body = await safeJson(res);
+      if (!res.ok) throw new Error('HTTP ' + res.status + (body && body.error ? ': ' + body.error : ''));
+      return body;
+    }
+
+    async function safeJson(res) {
+      try { return await res.json(); } catch (e) { return null; }
+    }
+
+    function renderRow(test, status, detail, latencyMs) {
+      const cls = status === 'pass' ? 'pass' : (status === 'fail' ? 'fail' : 'pending');
+      const dotColor = status === 'pass' ? 'var(--green)' : (status === 'fail' ? 'var(--red)' : 'var(--yellow)');
+      return '<tr id="row-' + test.name.replace(/\s+/g, '-') + '">' +
+        '<td><span class="badge ' + cls + '"><span class="status-dot status-' + cls + '" style="background:' + dotColor + '; color:' + dotColor + ';"></span>' + (status === 'pass' ? 'OK' : status === 'fail' ? 'FALHA' : 'TESTANDO') + '</span></td>' +
+        '<td>' + test.name + '<div class="detail mono">' + test.path + '</div></td>' +
+        '<td><span class="method-badge">' + test.method + '</span></td>' +
+        '<td class="mono">' + (latencyMs != null ? latencyMs + ' ms' : '--') + '</td>' +
+        '<td class="detail">' + (detail || '') + '</td>' +
+        '</tr>';
+    }
+
+    function updateSummary(results) {
+      const passCount = results.filter(r => r.status === 'pass').length;
+      const failCount = results.filter(r => r.status === 'fail').length;
+      const latencies = results.filter(r => r.latencyMs != null).map(r => r.latencyMs);
+      const avgLatency = latencies.length ? Math.round(latencies.reduce((a, b) => a + b, 0) / latencies.length) : 0;
+
+      const okCard = document.getElementById('summaryOk');
+      okCard.querySelector('.summary-value').textContent = passCount + '/' + results.length;
+      okCard.className = 'summary-card glass ' + (failCount === 0 ? 'ok' : 'pending');
+
+      const failCard = document.getElementById('summaryFail');
+      failCard.querySelector('.summary-value').textContent = failCount;
+      failCard.className = 'summary-card glass ' + (failCount > 0 ? 'fail' : 'ok');
+
+      const latencyCard = document.getElementById('summaryLatency');
+      latencyCard.querySelector('.summary-value').textContent = avgLatency;
+      latencyCard.className = 'summary-card glass info';
+
+      const lastRunCard = document.getElementById('summaryLastRun');
+      lastRunCard.querySelector('.summary-value').textContent = new Date().toLocaleTimeString('pt-BR');
+      lastRunCard.className = 'summary-card glass info';
+    }
+
+    async function runAllTests() {
+      const tests = buildTests();
+      const tbody = document.getElementById('resultsBody');
+      tbody.innerHTML = tests.map(t => renderRow(t, 'pending', 'executando...', null)).join('');
+
+      const results = [];
+      for (const test of tests) {
+        const rowId = 'row-' + test.name.replace(/\s+/g, '-');
+        const start = performance.now();
+        try {
+          const detail = await test.run();
+          const latencyMs = Math.round(performance.now() - start);
+          results.push({ name: test.name, status: 'pass', detail, latencyMs });
+          document.getElementById(rowId).outerHTML = renderRow(test, 'pass', detail, latencyMs);
+        } catch (err) {
+          const latencyMs = Math.round(performance.now() - start);
+          results.push({ name: test.name, status: 'fail', detail: err.message, latencyMs });
+          document.getElementById(rowId).outerHTML = renderRow(test, 'fail', err.message, latencyMs);
+        }
+      }
+      updateSummary(results);
+    }
+
+    function scheduleNext() {
+      if (timerId) clearTimeout(timerId);
+      if (!autoRunning) return;
+      timerId = setTimeout(async () => {
+        await runAllTests();
+        scheduleNext();
+      }, intervalSeconds * 1000);
+    }
+
+    document.getElementById('runNowBtn').addEventListener('click', async () => {
+      API_BASE = document.getElementById('apiBaseInput').value.trim();
+      await runAllTests();
+    });
+
+    document.getElementById('toggleAutoBtn').addEventListener('click', function () {
+      autoRunning = !autoRunning;
+      this.textContent = autoRunning ? 'Pausar Auto-Teste' : 'Retomar Auto-Teste';
+      if (autoRunning) scheduleNext(); else if (timerId) clearTimeout(timerId);
+    });
+
+    document.getElementById('intervalInput').addEventListener('change', function () {
+      intervalSeconds = Math.max(5, Number(this.value) || 30);
+      document.getElementById('intervalLabel').textContent = intervalSeconds;
+      scheduleNext();
+    });
+
+    document.getElementById('apiBaseInput').addEventListener('change', function () {
+      API_BASE = this.value.trim();
+    });
+
+    (async function init() {
+      await runAllTests();
+      scheduleNext();
+    })();
+  </script>
+</body>
+</html>

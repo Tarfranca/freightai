@@ -1,0 +1,1401 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FREIGHT AI | Freight Monitoring</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg: #000000;
+      --bg-soft: #07151f;
+      --panel: rgba(255,255,255,0.04);
+      --panel-strong: rgba(255,255,255,0.06);
+      --line: rgba(0,255,136,0.22);
+      --green: #00ff88;
+      --blue: #00d4ff;
+      --red: #ff4d6d;
+      --yellow: #ffd166;
+      --text: #f2f7ff;
+      --muted: rgba(242,247,255,0.7);
+      --shadow: 0 0 30px rgba(0,255,136,0.12);
+      --radius: 18px;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; font-family: system-ui, -apple-system, Segoe UI, sans-serif; background: var(--bg); color: var(--text); }
+    body { background: linear-gradient(rgba(0,255,136,0.02), rgba(0,255,136,0.01)), radial-gradient(circle at top left, rgba(0,212,255,0.12), transparent 30%), var(--bg); position: relative; overflow-x: hidden; }
+    body::before { content: ""; position: fixed; inset: 0; background-image: linear-gradient(rgba(0,255,136,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(0,255,136,0.04) 1px, transparent 1px); background-size: 28px 28px; pointer-events: none; mask-image: radial-gradient(circle at center, black 55%, transparent 100%); animation: gridFloat 18s linear infinite; }
+    @keyframes gridFloat { 0% { transform: translate3d(0,0,0); } 50% { transform: translate3d(0,8px,0); } 100% { transform: translate3d(0,0,0); } }
+    @keyframes pulse { 0%,100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.2); opacity: 0.7; } }
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+
+    .app-shell { max-width: 1450px; margin: 0 auto; padding: 24px 18px 60px; position: relative; z-index: 1; }
+    .glass { background: var(--panel); border: 1px solid rgba(0,255,136,0.2); box-shadow: var(--shadow); border-radius: var(--radius); backdrop-filter: blur(12px); }
+    .header { padding: 22px 24px 14px; position: sticky; top: 0; z-index: 10; background: rgba(0,0,0,0.65); backdrop-filter: blur(14px); }
+    .header-top { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 16px; }
+    .brand-wrap { display: flex; flex-direction: column; gap: 6px; }
+    .brand { font-family: 'Courier New', monospace; font-size: 2.1rem; font-weight: 700; letter-spacing: 0.16em; color: var(--green); text-shadow: 0 0 10px rgba(0,255,136,0.6); margin: 0; }
+    .subtitle { font-size: 0.9rem; color: var(--muted); }
+    .version-tag { border: 1px solid rgba(0,212,255,0.4); color: var(--blue); padding: 6px 10px; border-radius: 999px; font-size: 0.72rem; letter-spacing: 0.12em; text-transform: uppercase; background: rgba(0,212,255,0.05); }
+    .nav { display: flex; gap: 8px; flex-wrap: wrap; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 12px; }
+    .tab { background: transparent; border: 1px solid transparent; color: var(--muted); font-size: 0.8rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; padding: 10px 14px; border-radius: 12px; cursor: pointer; transition: all 0.22s ease; }
+    .tab.active { color: var(--green); border-color: rgba(0,255,136,0.35); box-shadow: 0 0 18px rgba(0,255,136,0.12); background: rgba(0,255,136,0.04); }
+    .panel { display: none; margin-top: 22px; padding: 22px; animation: fadeUp 0.35s ease; }
+    .panel.active { display: block; }
+    .panel-header { display: flex; justify-content: space-between; align-items: end; gap: 12px; margin-bottom: 18px; }
+    .panel h2 { margin: 0; font-size: 1.8rem; letter-spacing: -0.04em; }
+    .subhead { color: var(--muted); margin-top: 6px; font-size: 0.9rem; }
+    .live-pill { display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 999px; background: rgba(255,77,109,0.08); border: 1px solid rgba(255,77,109,0.22); color: #ff8ea0; font-size: 0.72rem; letter-spacing: 0.18em; text-transform: uppercase; font-weight: 700; }
+    .live-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--red); box-shadow: 0 0 12px rgba(255,77,109,0.8); animation: pulse 1.6s infinite; }
+
+    .kpi-grid { display: grid; grid-template-columns: repeat(6, minmax(180px, 1fr)); gap: 16px; margin-bottom: 22px; }
+    .kpi-card { padding: 16px 14px; min-height: 138px; display: flex; flex-direction: column; justify-content: space-between; }
+    .kpi-label { font-size: 0.72rem; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; }
+    .kpi-value { font-family: 'Courier New', monospace; font-size: clamp(1.5rem, 2vw, 2.1rem); font-weight: 700; letter-spacing: 0.02em; margin: 8px 0; }
+    .trend { font-weight: 700; font-size: 0.82rem; display: inline-flex; align-items: center; gap: 6px; width: fit-content; }
+    .trend.up { color: var(--green); }
+    .trend.down { color: var(--red); }
+    .trend.flat { color: var(--blue); }
+
+    .route-semaphore { display: grid; grid-template-columns: repeat(5, minmax(160px,1fr)); gap: 12px; margin: 22px 0; }
+    .route-card { padding: 14px 16px; min-height: 128px; }
+    .route-card h4 { margin: 0 0 10px; font-size: 1rem; }
+    .status-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 10px; font-size: 0.8rem; color: var(--muted); text-transform: uppercase; }
+    .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 8px; box-shadow: 0 0 12px currentColor; }
+    .verde { color: var(--green); }
+    .amarelo { color: var(--yellow); }
+    .vermelho { color: var(--red); }
+    .status-badge { display: inline-flex; align-items: center; padding: 4px 8px; border-radius: 999px; border: 1px solid currentColor; background: rgba(255,255,255,0.02); font-size: 0.68rem; letter-spacing: 0.1em; font-weight: 700; }
+    .route-card p { margin: 0; color: var(--muted); line-height: 1.6; font-size: 0.86rem; }
+    .chart-panel { padding: 18px; margin-top: 18px; }
+    .chart-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 12px; }
+    .chart-head h3 { margin: 0; font-size: 1.05rem; }
+    .muted { color: var(--muted); font-size: 0.8rem; }
+    .alert-grid { display: grid; grid-template-columns: repeat(3, minmax(220px, 1fr)); gap: 16px; margin-top: 18px; }
+    .alert-card { padding: 18px 16px; }
+    .alert-card .icon { font-size: 1.8rem; margin-bottom: 12px; }
+    .alert-tag { display: inline-flex; align-items: center; padding: 6px 10px; border-radius: 999px; font-size: 0.68rem; letter-spacing: 0.12em; text-transform: uppercase; font-weight: 700; margin-bottom: 10px; }
+    .critico { color: #ff9bb0; background: rgba(255,77,109,0.08); border: 1px solid rgba(255,77,109,0.2); }
+    .atencao { color: var(--yellow); background: rgba(255,209,102,0.08); border: 1px solid rgba(255,209,102,0.2); }
+    .info { color: var(--blue); background: rgba(0,212,255,0.08); border: 1px solid rgba(0,212,255,0.2); }
+    .alert-card h3 { margin: 0 0 8px; font-size: 1.08rem; }
+    .alert-card p { margin: 0; color: var(--muted); line-height: 1.6; }
+
+    .market-grid { display: grid; grid-template-columns: repeat(4, minmax(200px, 1fr)); gap: 16px; }
+    .mini-chart { padding: 14px 12px 8px; min-height: 220px; }
+    .dashboard-grid { display: grid; grid-template-columns: 1.2fr 1fr; gap: 18px; margin-top: 18px; }
+    table { width: 100%; border-collapse: collapse; min-width: 620px; font-size: 0.9rem; }
+    th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.06); }
+    th { color: var(--muted); font-weight: 700; text-transform: uppercase; font-size: 0.72rem; letter-spacing: 0.08em; }
+    .cell-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 62px; padding: 6px 8px; border-radius: 999px; font-size: 0.72rem; font-weight: 700; }
+    .up { background: rgba(0,255,136,0.08); color: var(--green); border: 1px solid rgba(0,255,136,0.25); }
+    .down { background: rgba(255,77,109,0.08); color: var(--red); border: 1px solid rgba(255,77,109,0.25); }
+    .flat { background: rgba(255,255,255,0.04); color: var(--muted); border: 1px solid rgba(255,255,255,0.08); }
+    .impact-list { display: flex; flex-direction: column; gap: 14px; margin-top: 12px; }
+    .impact-row { display: grid; grid-template-columns: 120px 1fr 54px; align-items: center; gap: 10px; font-size: 0.82rem; }
+    .impact-bar { height: 10px; border-radius: 99px; background: rgba(255,255,255,0.05); overflow: hidden; border: 1px solid rgba(255,255,255,0.08); }
+    .impact-fill { height: 100%; background: linear-gradient(90deg, var(--green), var(--blue)); box-shadow: 0 0 18px rgba(0,255,136,0.38); border-radius: inherit; }
+    .impact-value { font-family: 'Courier New', monospace; color: var(--green); text-align: right; font-weight: 700; }
+
+    .forecast-layout { display: grid; grid-template-columns: 1.1fr 1.3fr; gap: 20px; align-items: start; }
+    .form-panel { padding: 18px; }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .field { display: flex; flex-direction: column; gap: 8px; color: var(--muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em; }
+    .field input, .field select { background: rgba(255,255,255,0.04); border: 1px solid rgba(0,255,136,0.18); color: var(--text); border-radius: 12px; padding: 12px 14px; font-size: 0.95rem; outline: none; }
+    .action-row { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
+    .btn { border: none; cursor: pointer; padding: 12px 18px; border-radius: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; transition: transform 0.18s ease, box-shadow 0.18s ease; }
+    .btn:hover { transform: translateY(-1px); }
+    .btn-primary { background: linear-gradient(135deg, var(--green), #00c78a); color: #02180f; box-shadow: 0 0 24px rgba(0,255,136,0.38); }
+    .btn-secondary { background: linear-gradient(135deg, var(--blue), #1a8cff); color: #021620; box-shadow: 0 0 24px rgba(0,212,255,0.38); }
+
+    .result-panel { padding: 18px; opacity: 0; transform: translateY(18px); transition: all 0.3s ease; min-height: 420px; }
+    .result-panel.visible { opacity: 1; transform: translateY(0); }
+    .price-block { font-family: 'Courier New', monospace; font-size: clamp(2.1rem, 3vw, 3rem); font-weight: 700; color: var(--green); text-shadow: 0 0 18px rgba(0,255,136,0.35); margin: 12px 0; }
+    .confidence-row { color: var(--muted); display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 18px; }
+    .trend-badge { padding: 8px 12px; border-radius: 999px; display: inline-flex; align-items: center; font-weight: 700; font-size: 0.8rem; letter-spacing: 0.08em; text-transform: uppercase; border: 1px solid rgba(255,255,255,0.1); }
+    .trend-badge.up { background: rgba(0,255,136,0.08); color: var(--green); }
+    .trend-badge.down { background: rgba(255,77,109,0.08); color: var(--red); }
+    .factor-grid { display: grid; grid-template-columns: repeat(3, minmax(120px,1fr)); gap: 12px; margin-top: 18px; }
+    .factor-card { padding: 14px 12px; border-radius: 12px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); }
+    .factor-card small { display: block; color: var(--muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.7rem; }
+    .factor-card strong { font-size: 1rem; }
+    .optimization-panel { margin-top: 18px; display: none; gap: 12px; flex-direction: column; }
+    .optimization-panel.visible { display: flex; }
+    .opt-card { background: rgba(255,255,255,0.02); border: 1px solid rgba(0,212,255,0.14); border-radius: 12px; padding: 12px 14px; }
+    .opt-card strong { display: block; margin-bottom: 6px; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+    .opt-value { font-family: 'Courier New', monospace; font-size: 1.15rem; color: var(--text); }
+    .disclaimer { margin-top: 18px; font-size: 0.78rem; color: var(--muted); line-height: 1.5; }
+
+    .risk-grid { display: grid; grid-template-columns: repeat(5, minmax(180px,1fr)); gap: 14px; }
+    .risk-card { padding: 18px 14px; }
+    .risk-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 12px; }
+    .risk-card h3 { margin: 0; font-size: 1rem; }
+    .risk-score { font-family: 'Courier New', monospace; font-size: 1.1rem; color: var(--text); }
+    .risk-card p { margin: 0; color: var(--muted); line-height: 1.6; font-size: 0.85rem; }
+    .score-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 52px; padding: 7px 9px; border-radius: 10px; font-weight: 700; font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; }
+    .score-badge.red { background: rgba(255,77,109,0.08); color: var(--red); border: 1px solid rgba(255,77,109,0.22); }
+    .score-badge.yellow { background: rgba(255,209,102,0.08); color: var(--yellow); border: 1px solid rgba(255,209,102,0.22); }
+    .score-badge.green { background: rgba(0,255,136,0.08); color: var(--green); border: 1px solid rgba(0,255,136,0.22); }
+
+    .map-wrap { margin-top: 18px; display: grid; grid-template-columns: 1.3fr 0.7fr; gap: 18px; }
+    .map-panel { padding: 18px; min-height: 360px; }
+    .news-panel { padding: 18px; }
+    svg { width: 100%; height: 360px; display: block; }
+    .route-line { fill: none; stroke-width: 2.4; stroke-linecap: round; stroke-dasharray: 10 8; animation: dashFlow 4s linear infinite; }
+    @keyframes dashFlow { from { stroke-dashoffset: 0; } to { stroke-dashoffset: -36; } }
+    .port-dot { fill: #fff; stroke-width: 2; animation: pulse 2s ease-in-out infinite; }
+    .port-label { fill: rgba(255,255,255,0.96); font-size: 11px; letter-spacing: 0.02em; }
+    .news-toolbar { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 18px; }
+    .chip { border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.02); color: var(--muted); border-radius: 999px; padding: 9px 12px; cursor: pointer; text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.7rem; font-weight: 700; }
+    .chip.active { background: rgba(0,255,136,0.08); color: var(--green); border-color: rgba(0,255,136,0.22); }
+    .news-grid { display: grid; grid-template-columns: repeat(2, minmax(220px,1fr)); gap: 14px; }
+    .news-card { padding: 14px 14px 12px; }
+    .news-meta { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+    .tag { font-size: 0.66rem; letter-spacing: 0.08em; text-transform: uppercase; padding: 5px 8px; border-radius: 999px; border: 1px solid transparent; font-weight: 700; }
+    .tag.geopolítico { border-color: rgba(255,77,109,0.25); color: var(--red); background: rgba(255,77,109,0.08); }
+    .tag.energia { border-color: rgba(255,209,102,0.25); color: var(--yellow); background: rgba(255,209,102,0.08); }
+    .tag.portos { border-color: rgba(0,212,255,0.25); color: var(--blue); background: rgba(0,212,255,0.08); }
+    .tag.câmbio { border-color: rgba(0,255,136,0.25); color: var(--green); background: rgba(0,255,136,0.08); }
+    .tag.clima { border-color: rgba(195,162,255,0.25); color: #c4a8ff; background: rgba(195,162,255,0.08); }
+    .impact-badge { display: inline-flex; border-radius: 999px; padding: 5px 8px; font-size: 0.62rem; letter-spacing: 0.12em; text-transform: uppercase; font-weight: 700; border: 1px solid transparent; }
+    .impact-badge.alto { background: rgba(255,77,109,0.08); color: var(--red); border-color: rgba(255,77,109,0.24); }
+    .impact-badge.medio { background: rgba(255,209,102,0.08); color: var(--yellow); border-color: rgba(255,209,102,0.24); }
+    .impact-badge.baixo { background: rgba(0,255,136,0.08); color: var(--green); border-color: rgba(0,255,136,0.24); }
+    .news-card h4 { margin: 0 0 8px; font-size: 1rem; line-height: 1.4; }
+    .news-card p { margin: 0 0 12px; color: var(--muted); font-size: 0.85rem; line-height: 1.55; }
+    .news-footer { display: flex; justify-content: space-between; align-items: center; gap: 10px; color: var(--muted); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; }
+    .arrow { color: var(--green); font-size: 1.1rem; line-height: 1; }
+    .table-wrap { overflow-x: auto; }
+    .routes-table td:nth-child(3), .routes-table td:nth-child(5) { font-family: 'Courier New', monospace; }
+    .route-badge { display: inline-flex; align-items: center; justify-content: center; padding: 6px 8px; border-radius: 999px; font-size: 0.7rem; letter-spacing: 0.08em; font-weight: 700; text-transform: uppercase; border: 1px solid transparent; }
+    .route-badge.contratar { background: rgba(0,255,136,0.08); color: var(--green); border-color: rgba(0,255,136,0.18); }
+    .route-badge.aguardar { background: rgba(255,209,102,0.08); color: var(--yellow); border-color: rgba(255,209,102,0.18); }
+    .route-badge.evitar { background: rgba(255,77,109,0.08); color: var(--red); border-color: rgba(255,77,109,0.18); }
+    .route-detail-grid { display: grid; grid-template-columns: repeat(5, minmax(180px, 1fr)); gap: 14px; margin-top: 18px; }
+    .route-detail-card { padding: 14px; }
+    .flag-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 12px; }
+    .route-detail-card h4 { margin: 0; font-size: 0.96rem; line-height: 1.4; }
+    .route-detail-card p { margin: 8px 0; color: var(--muted); font-size: 0.85rem; }
+    .mini-value { font-family: 'Courier New', monospace; color: var(--green); font-weight: 700; }
+    .sim-btn { width: 100%; margin-top: 8px; border: 1px solid rgba(0,212,255,0.2); background: rgba(0,212,255,0.06); color: var(--blue); padding: 10px 12px; border-radius: 10px; cursor: pointer; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; font-size: 0.72rem; }
+    .assistant-shell { min-height: 680px; display: grid; grid-template-rows: auto 1fr auto auto; overflow: hidden; }
+    .chat-header { display: flex; justify-content: space-between; align-items: center; padding: 18px 20px; border-bottom: 1px solid rgba(255,255,255,0.06); background: rgba(255,255,255,0.02); }
+    .chat-brand { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+    .chat-name { font-family: 'Courier New', monospace; font-size: 1.6rem; letter-spacing: 0.12em; color: var(--green); text-shadow: 0 0 12px rgba(0,255,136,0.5); }
+    .chat-sub { color: var(--muted); font-size: 0.82rem; letter-spacing: 0.06em; text-transform: uppercase; }
+    .online { display: inline-flex; align-items: center; gap: 8px; color: var(--green); letter-spacing: 0.12em; text-transform: uppercase; font-size: 0.68rem; font-weight: 700; }
+    .online-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--green); box-shadow: 0 0 15px rgba(0,255,136,0.8); animation: pulse 1.4s infinite; }
+    .chat-body { padding: 16px; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; background: rgba(0,0,0,0.12); }
+    .message { max-width: 74%; padding: 13px 14px; border-radius: 15px; line-height: 1.6; font-size: 0.95rem; word-break: break-word; }
+    .message.user { align-self: flex-end; background: linear-gradient(135deg, rgba(0,255,136,0.18), rgba(0,212,255,0.18)); border: 1px solid rgba(0,255,136,0.25); color: #e6fff3; }
+    .message.ai { align-self: flex-start; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); color: var(--text); }
+    .typing { display: flex; align-self: flex-start; gap: 6px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 15px; padding: 12px 12px 10px; width: fit-content; }
+    .typing span { width: 9px; height: 9px; border-radius: 50%; background: var(--green); animation: pulse 1.2s infinite ease-in-out; display: block; }
+    .typing span:nth-child(2) { animation-delay: 0.15s; }
+    .typing span:nth-child(3) { animation-delay: 0.3s; }
+    .suggestions { display: flex; flex-wrap: wrap; gap: 10px; padding: 0 16px 16px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+    .suggestion-chip { background: rgba(255,255,255,0.02); color: var(--muted); border: 1px solid rgba(255,255,255,0.08); border-radius: 999px; padding: 8px 10px; cursor: pointer; font-size: 0.74rem; line-height: 1.3; }
+    .chat-input-row { display: grid; grid-template-columns: 1fr auto; gap: 10px; padding: 16px; }
+    .chat-input { width: 100%; background: rgba(255,255,255,0.04); border: 1px solid rgba(0,255,136,0.16); border-radius: 12px; color: var(--text); padding: 14px 16px; font-size: 0.96rem; outline: none; }
+    .send-btn { background: linear-gradient(135deg, var(--green), #00c88a); color: #02180f; border: none; border-radius: 12px; padding: 0 18px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; cursor: pointer; }
+
+    .mode-selector { display: flex; gap: 12px; margin-bottom: 18px; }
+    .mode-btn { flex: 1; padding: 16px; border-radius: 14px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.02); color: var(--muted); font-size: 1rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer; transition: all 0.2s ease; }
+    .mode-btn.active { color: var(--green); border-color: rgba(0,255,136,0.45); background: rgba(0,255,136,0.06); box-shadow: 0 0 22px rgba(0,255,136,0.18); }
+    .mode-btn.active.air { color: var(--blue); border-color: rgba(0,212,255,0.45); background: rgba(0,212,255,0.06); box-shadow: 0 0 22px rgba(0,212,255,0.18); }
+
+    .autocomplete-wrap { position: relative; }
+    .autocomplete-list { position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 20; max-height: 260px; overflow-y: auto; background: #0a1a12; border: 1px solid rgba(0,255,136,0.25); border-radius: 12px; box-shadow: 0 12px 30px rgba(0,0,0,0.5); display: none; }
+    .autocomplete-list.visible { display: block; }
+    .autocomplete-item { padding: 10px 14px; cursor: pointer; font-size: 0.85rem; color: var(--text); border-bottom: 1px solid rgba(255,255,255,0.05); }
+    .autocomplete-item:last-child { border-bottom: none; }
+    .autocomplete-item:hover, .autocomplete-item.highlighted { background: rgba(0,255,136,0.08); }
+    .autocomplete-item small { display: block; color: var(--muted); margin-top: 2px; }
+    .autocomplete-empty { padding: 10px 14px; color: var(--muted); font-size: 0.8rem; }
+
+    .calc-field { background: rgba(0,212,255,0.03); border-color: rgba(0,212,255,0.22) !important; color: var(--blue) !important; cursor: not-allowed; }
+    .calc-field.warn { border-color: rgba(255,209,102,0.4) !important; color: var(--yellow) !important; }
+    .calc-label { font-size: 0.68rem; color: var(--muted); text-transform: none; letter-spacing: 0; margin-top: 2px; }
+
+    .breakdown-table-wrap { margin-top: 18px; }
+    .breakdown-table { width: 100%; border-collapse: collapse; }
+    .breakdown-table th, .breakdown-table td { padding: 9px 10px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.06); font-size: 0.85rem; }
+    .breakdown-table th { color: var(--muted); text-transform: uppercase; font-size: 0.68rem; letter-spacing: 0.08em; }
+    .breakdown-table td:nth-child(2), .breakdown-table td:nth-child(3) { font-family: 'Courier New', monospace; text-align: right; }
+    .breakdown-table tr.total-row td { font-weight: 800; color: var(--green); border-top: 1px solid rgba(0,255,136,0.3); border-bottom: none; }
+    .stacked-bar { display: flex; height: 26px; border-radius: 8px; overflow: hidden; margin: 14px 0; border: 1px solid rgba(255,255,255,0.08); }
+    .stacked-bar-seg { height: 100%; }
+    .stacked-bar-legend { display: flex; flex-wrap: wrap; gap: 8px 14px; font-size: 0.72rem; color: var(--muted); margin-bottom: 6px; }
+    .stacked-bar-legend span.swatch { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 5px; }
+
+    .benchmark-badge { display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 999px; font-size: 0.78rem; font-weight: 700; margin-top: 14px; border: 1px solid rgba(255,255,255,0.1); }
+    .benchmark-badge.above { background: rgba(255,77,109,0.08); color: var(--red); border-color: rgba(255,77,109,0.25); }
+    .benchmark-badge.below { background: rgba(0,255,136,0.08); color: var(--green); border-color: rgba(0,255,136,0.25); }
+    .incoterm-note { margin-top: 12px; padding: 12px 14px; border-radius: 10px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); color: var(--muted); font-size: 0.82rem; line-height: 1.5; }
+
+    .weight-box { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 14px 0; }
+    .weight-cell { padding: 10px; border-radius: 10px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); text-align: center; }
+    .weight-cell.highlight { border-color: rgba(0,212,255,0.35); background: rgba(0,212,255,0.05); }
+    .weight-cell small { display: block; color: var(--muted); font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; }
+    .weight-cell strong { font-family: 'Courier New', monospace; font-size: 0.95rem; }
+
+    .comparison-card { margin-top: 18px; padding: 16px; border-radius: 12px; background: rgba(255,209,102,0.04); border: 1px solid rgba(255,209,102,0.18); }
+    .comparison-card h4 { margin: 0 0 10px; font-size: 0.95rem; color: var(--yellow); }
+    .comparison-row { display: flex; justify-content: space-between; font-size: 0.84rem; padding: 5px 0; color: var(--muted); }
+    .comparison-row strong { color: var(--text); font-family: 'Courier New', monospace; }
+    .comparison-note { margin-top: 10px; font-size: 0.8rem; color: var(--yellow); }
+
+    .info-card { padding: 14px 16px; border-radius: 12px; background: rgba(0,212,255,0.04); border: 1px solid rgba(0,212,255,0.18); color: var(--muted); font-size: 0.85rem; margin-top: 18px; }
+    .info-card strong { color: var(--blue); }
+
+    .commodity-strip { display: grid; grid-template-columns: repeat(4, minmax(150px, 1fr)); gap: 14px; margin-bottom: 18px; }
+    .commodity-chip { padding: 12px 14px; }
+    .commodity-chip .kpi-label { font-size: 0.68rem; }
+    .commodity-chip .kpi-value { font-size: 1.3rem; margin: 6px 0; }
+
+    .climate-alert { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: 12px; margin-top: 18px; background: rgba(255,209,102,0.06); border: 1px solid rgba(255,209,102,0.3); color: var(--yellow); font-size: 0.86rem; }
+    .climate-alert.severe { background: rgba(255,77,109,0.07); border-color: rgba(255,77,109,0.32); color: #ff9bb0; }
+    .climate-alert .icon { font-size: 1.5rem; }
+
+    .category-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin: 18px 0 14px; }
+    .category-tab { background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.1); color: var(--muted); padding: 8px 14px; border-radius: 999px; font-size: 0.74rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; cursor: pointer; }
+    .category-tab.active { color: var(--green); border-color: rgba(0,255,136,0.4); background: rgba(0,255,136,0.06); }
+    .commodity-table-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+    .commodity-row { padding: 12px 14px; display: flex; justify-content: space-between; align-items: center; }
+    .commodity-row .name { font-weight: 700; font-size: 0.85rem; }
+    .commodity-row .price { font-family: 'Courier New', monospace; text-align: right; }
+    .commodity-row .price small { display: block; color: var(--muted); font-weight: 400; font-size: 0.7rem; }
+
+    .route-select { background: rgba(255,255,255,0.04); border: 1px solid rgba(0,255,136,0.2); color: var(--text); border-radius: 10px; padding: 8px 12px; font-size: 0.82rem; }
+
+    .climate-section { margin-top: 22px; }
+    .climate-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+    .climate-card { padding: 16px; }
+    .climate-card h4 { margin: 0 0 10px; font-size: 0.9rem; color: var(--blue); text-transform: uppercase; letter-spacing: 0.06em; }
+    .climate-value { font-family: 'Courier New', monospace; font-size: 1.6rem; font-weight: 700; }
+    .port-weather-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
+    .port-weather-card { padding: 12px 14px; }
+    .port-weather-card h5 { margin: 0 0 8px; font-size: 0.85rem; }
+    .port-weather-card .row { display: flex; justify-content: space-between; font-size: 0.78rem; color: var(--muted); margin-top: 4px; }
+
+    @media (max-width: 900px) {
+      .commodity-strip { grid-template-columns: repeat(2, 1fr); }
+      .climate-grid { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 900px) {
+      .weight-box { grid-template-columns: repeat(2, 1fr); }
+      .mode-selector { flex-direction: column; }
+    }
+
+    @media (max-width: 1100px) {
+      .kpi-grid { grid-template-columns: repeat(3, minmax(150px, 1fr)); }
+      .route-semaphore { grid-template-columns: repeat(2, minmax(180px,1fr)); }
+      .market-grid { grid-template-columns: repeat(2, minmax(200px, 1fr)); }
+      .forecast-layout, .map-wrap { grid-template-columns: 1fr; }
+      .risk-grid { grid-template-columns: repeat(2, minmax(180px,1fr)); }
+      .route-detail-grid { grid-template-columns: repeat(2, minmax(180px,1fr)); }
+      .news-grid { grid-template-columns: 1fr; }
+      .dashboard-grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 680px) {
+      .header-top { align-items: flex-start; flex-direction: column; }
+      .brand { font-size: 1.5rem; letter-spacing: 0.1em; }
+      .kpi-grid, .route-semaphore, .risk-grid, .market-grid, .route-detail-grid, .form-grid, .alert-grid { grid-template-columns: 1fr; }
+      .nav { gap: 6px; }
+      .tab { padding: 8px 10px; font-size: 0.7rem; }
+      .action-row { flex-direction: column; }
+      .btn { width: 100%; }
+      .chat-input-row { grid-template-columns: 1fr; }
+      .message { max-width: 88%; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="header glass">
+      <div class="header-top">
+        <div class="brand-wrap">
+          <h1 class="brand">FREIGHT AI</h1>
+          <div class="subtitle">Plataforma de Inteligência em Fretes Internacionais</div>
+        </div>
+        <div class="version-tag">v3.0 | MBA USP</div>
+      </div>
+      <nav class="nav" aria-label="Navegação principal">
+        <button class="tab active" data-tab="cockpit">Cockpit</button>
+        <button class="tab" data-tab="mercado">Mercado</button>
+        <button class="tab" data-tab="previsao">Previsão &amp; Otimização</button>
+        <button class="tab" data-tab="riscos">Riscos</button>
+        <button class="tab" data-tab="rotas">Rotas</button>
+        <button class="tab" data-tab="friday">Friday</button>
+      </nav>
+    </header>
+
+    <main>
+      <section id="cockpit" class="panel active glass">
+        <div class="panel-header">
+          <div>
+            <h2>Bom dia, Diretor.</h2>
+            <div class="subhead"><span id="current-date">--</span> · Panorama do mercado de fretes para hoje</div>
+          </div>
+          <div id="livePill" class="live-pill"><span class="live-dot"></span><span id="livePillText">Conectando...</span></div>
+        </div>
+        <div id="commodityStrip" class="commodity-strip"></div>
+        <div id="kpiGrid" class="kpi-grid"></div>
+        <div id="routeSemaphore" class="route-semaphore"></div>
+        <div class="chart-panel glass"><div class="chart-head"><h3>Evolução do Índice de Frete — dados reais</h3><span class="muted">Índice calculado a partir do custo médio real de embarques no data lake</span></div><canvas id="freightIndexChart" height="120"></canvas></div>
+        <div id="alertGrid" class="alert-grid"></div>
+        <div id="cockpitClimateAlert"></div>
+        <div class="info-card">📋 <strong>Campos avançados disponíveis:</strong> Tipo de Container, Incoterm, Aeroporto/Porto de origem e destino — acesse <strong>Previsão &amp; Otimização</strong> para simulação completa de frete marítimo ou aéreo.</div>
+      </section>
+
+      <section id="mercado" class="panel glass">
+        <div class="panel-header"><div><h2>Inteligência de Mercado</h2><div class="subhead">Indicadores macroeconômicos e de mercado em tempo real</div></div></div>
+        <div class="market-grid">
+          <div class="mini-chart glass"><canvas id="miniUsdChart"></canvas></div>
+          <div class="mini-chart glass"><canvas id="miniBrentChart"></canvas></div>
+          <div class="mini-chart glass"><canvas id="miniZimChart"></canvas></div>
+          <div class="mini-chart glass"><canvas id="miniBdryChart"></canvas></div>
+        </div>
+        <div class="chart-panel glass" style="margin-top: 18px;">
+          <div class="chart-head">
+            <h3>SCFI — Shanghai Containerized Freight Index</h3>
+            <select id="scfiRouteSelect" class="route-select"></select>
+          </div>
+          <span class="muted">Índice semanal real da Shanghai Shipping Exchange</span>
+          <canvas id="scfiChart" height="110"></canvas>
+          <div id="scfiRouteNote" class="muted" style="margin-top:8px;"></div>
+        </div>
+        <div class="chart-panel glass" style="margin-top: 18px;">
+          <div class="chart-head"><h3>Preços de Commodities</h3><span class="muted">Fechamento mais recente e variação de 30 dias, dados reais via yfinance</span></div>
+          <div id="commodityCategoryTabs" class="category-tabs"></div>
+          <div id="commodityTableGrid" class="commodity-table-grid"></div>
+        </div>
+        <div class="dashboard-grid">
+          <div class="chart-panel glass"><div class="chart-head"><h3>Matriz de Correlação</h3><span class="muted">Correlação real entre variáveis de mercado e custo de frete por rota</span></div><div class="table-wrap"><table><thead><tr><th>Variável</th><th>Atlantic</th><th>Pacific</th><th>Suez</th><th>Intra-Asia</th></tr></thead><tbody id="correlationTableBody"></tbody></table></div></div>
+          <div class="chart-panel glass"><div class="chart-head"><h3>Importância das Variáveis no Modelo</h3><span class="muted">Feature importance real do XGBoost treinado</span></div><div id="impactList" class="impact-list"></div></div>
+        </div>
+        <div class="chart-panel glass" style="margin-top: 18px;"><div class="chart-head"><h3>Heatmap de Sazonalidade</h3><span class="muted">Rota x mês — índice relativo de custo real (100 = média da rota)</span></div><div class="table-wrap"><table><thead><tr><th>Rota</th><th>Jan</th><th>Fev</th><th>Mar</th><th>Abr</th><th>Mai</th><th>Jun</th><th>Jul</th><th>Ago</th><th>Set</th><th>Out</th><th>Nov</th><th>Dez</th></tr></thead><tbody id="heatmapBody"></tbody></table></div></div>
+      </section>
+
+      <section id="previsao" class="panel glass">
+        <div class="panel-header"><div><h2>Previsão &amp; Otimização</h2><div class="subhead">Simulação operacional com cenário de mercado e sazonalidade</div></div></div>
+
+        <div class="mode-selector">
+          <button id="modeMaritimeBtn" class="mode-btn active" data-mode="maritime">🚢 Marítimo</button>
+          <button id="modeAirBtn" class="mode-btn" data-mode="air">✈️ Aéreo</button>
+        </div>
+
+        <div class="forecast-layout">
+          <div class="form-panel glass">
+
+            <div id="maritimeFormPanel" class="form-grid">
+              <label class="field autocomplete-wrap"><span>Porto de Origem</span><input id="originPort" type="text" placeholder="Digite ao menos 2 letras..." autocomplete="off" /><div id="originPortList" class="autocomplete-list"></div></label>
+              <label class="field autocomplete-wrap"><span>Porto de Destino</span><input id="destinationPort" type="text" placeholder="Digite ao menos 2 letras..." autocomplete="off" /><div id="destinationPortList" class="autocomplete-list"></div></label>
+              <label class="field"><span>Tipo de Container</span><select id="containerType"><option>20' Dry</option><option>40' Dry</option><option selected>40' High Cube</option><option>40' Reefer</option><option>45' High Cube</option><option>LCL (Less than Container Load)</option></select></label>
+              <label class="field"><span>Quantidade de Containers</span><input id="containerQty" type="number" value="1" min="1" max="20" /></label>
+              <label class="field"><span>Peso Bruto (kg)</span><input id="maritimeWeight" type="number" value="18000" min="1" /></label>
+              <label class="field"><span>Volume (CBM)</span><input id="maritimeVolume" type="number" value="60" min="0" /></label>
+              <label class="field"><span>Incoterm</span><select id="maritimeIncoterm"><option>EXW</option><option>FOB</option><option>FCA</option><option>CFR</option><option>CIF</option><option>CPT</option><option>CIP</option><option>DAP</option><option>DPU</option><option>DDP</option></select></label>
+              <label class="field"><span>Tipo de Carga</span><select id="maritimeCargoType"><option value="Geral">Geral</option><option value="Perigosa">Perigosa (IMO)</option><option value="Refrigerada">Refrigerada</option><option value="Granel Sólido">Granel Sólido</option><option value="Granel Líquido">Granel Líquido</option><option value="Projeto/OOG">Projeto/OOG</option><option value="Farmacêutico">Farmacêutico</option><option value="Automotivo">Automotivo</option></select></label>
+              <label class="field"><span>Data de Embarque</span><input id="maritimeDate" type="date" /></label>
+            </div>
+
+            <div id="airFormPanel" class="form-grid" style="display:none;">
+              <label class="field autocomplete-wrap"><span>Aeroporto de Origem</span><input id="originAirport" type="text" placeholder="Cidade, aeroporto ou IATA..." autocomplete="off" /><div id="originAirportList" class="autocomplete-list"></div></label>
+              <label class="field autocomplete-wrap"><span>Aeroporto de Destino</span><input id="destinationAirport" type="text" placeholder="Cidade, aeroporto ou IATA..." autocomplete="off" /><div id="destinationAirportList" class="autocomplete-list"></div></label>
+              <label class="field"><span>Peso Real (kg)</span><input id="airWeight" type="number" value="500" min="0.1" /></label>
+              <label class="field"><span>Volume (m³)</span><input id="airVolume" type="number" value="2.5" min="0" step="0.1" /></label>
+              <label class="field"><span>Peso Cubado <span class="calc-label">(calculado automaticamente)</span></span><input id="airVolumetricWeight" type="text" class="calc-field" readonly /></label>
+              <label class="field"><span>Peso Taxável <span class="calc-label">(maior dos dois)</span></span><input id="airChargeableWeight" type="text" class="calc-field" readonly /></label>
+              <label class="field"><span>Tipo de Serviço</span><select id="airServiceType"><option value="Express">Express (1-3 dias)</option><option value="Standard" selected>Standard (3-7 dias)</option><option value="Economy">Economy (7-14 dias)</option></select></label>
+              <label class="field"><span>Tipo de Carga</span><select id="airCargoType"><option value="Geral">Geral</option><option value="Perigosa">Perigosa (IATA DGR)</option><option value="Perecível">Perecível</option><option value="Farmacêutico">Farmacêutico (GDP)</option><option value="Valioso">Valioso</option><option value="E-commerce">E-commerce</option></select></label>
+              <label class="field"><span>Incoterm</span><select id="airIncoterm"><option>EXW</option><option>FOB</option><option>FCA</option><option>CFR</option><option>CIF</option><option>CPT</option><option>CIP</option><option>DAP</option><option>DPU</option><option>DDP</option></select></label>
+              <label class="field"><span>Data de Embarque</span><input id="airDate" type="date" /></label>
+            </div>
+
+            <div class="action-row">
+              <button id="predictMaritimeBtn" class="btn btn-primary">Prever Frete Marítimo</button>
+              <button id="predictAirBtn" class="btn btn-secondary" style="display:none;">Prever Frete Aéreo</button>
+            </div>
+          </div>
+
+          <div id="resultCard" class="result-panel glass">
+            <div id="maritimeResults">
+              <div class="price-block" id="maritimeTotalPrice">$0</div>
+              <div class="confidence-row"><span>Intervalo de confiança:</span><strong id="maritimeConfidenceRange">$0 - $0</strong></div>
+              <div class="factor-grid" id="maritimeFactorGrid"></div>
+              <div id="maritimeBenchmarkBadge"></div>
+              <div class="breakdown-table-wrap">
+                <div id="maritimeStackedBar"></div>
+                <div class="table-wrap"><table class="breakdown-table"><thead><tr><th>Componente</th><th>USD</th><th>% do Total</th></tr></thead><tbody id="maritimeBreakdownBody"></tbody></table></div>
+              </div>
+              <div class="incoterm-note" id="maritimeIncotermNote"></div>
+              <div id="optimizationPanel" class="optimization-panel"><div class="opt-card"><strong>Rota mais barata</strong><div class="opt-value" id="cheapestRoute">-</div></div><div class="opt-card"><strong>Rota mais rápida</strong><div class="opt-value" id="fastestRoute">-</div></div><div class="opt-card"><strong>Melhor mês para embarque</strong><div class="opt-value" id="bestMonth">-</div></div><div class="chart-panel glass" style="margin-top:0;padding:14px;"><div class="chart-head"><h3>Custo por mês</h3><span class="muted">Sazonalidade</span></div><canvas id="seasonalityBarChart" height="150"></canvas></div><div class="chart-panel glass" style="margin-top:0;padding:14px;"><div class="chart-head"><h3>Fronteira de Pareto</h3><span class="muted">Custo x Lead time</span></div><canvas id="paretoChart" height="180"></canvas></div></div>
+              <div class="disclaimer" id="maritimeDisclaimer">Previsão gerada por modelo XGBoost treinado com dados reais de mercado, mais sobretaxas marítimas padrão do setor.</div>
+            </div>
+
+            <div id="airResults" style="display:none;">
+              <div class="price-block" id="airTotalPrice">$0</div>
+              <div class="confidence-row"><span>Intervalo de confiança:</span><strong id="airConfidenceRange">$0 - $0</strong></div>
+              <div class="weight-box">
+                <div class="weight-cell"><small>Peso Real</small><strong id="airRealWeightOut">-</strong></div>
+                <div class="weight-cell"><small>Peso Cubado</small><strong id="airCubicWeightOut">-</strong></div>
+                <div class="weight-cell highlight"><small>Peso Taxável</small><strong id="airChargeableWeightOut">-</strong></div>
+                <div class="weight-cell"><small>Densidade</small><strong id="airDensityOut">-</strong></div>
+              </div>
+              <div id="airBenchmarkBadge"></div>
+              <div class="breakdown-table-wrap">
+                <div id="airStackedBar"></div>
+                <div class="table-wrap"><table class="breakdown-table"><thead><tr><th>Componente</th><th>USD</th><th>% do Total</th></tr></thead><tbody id="airBreakdownBody"></tbody></table></div>
+              </div>
+              <div class="incoterm-note" id="airIncotermNote"></div>
+              <div class="comparison-card">
+                <h4>✈️ vs 🚢 Marítimo equivalente</h4>
+                <div class="comparison-row"><span>Custo aéreo total</span><strong id="cmpAirTotal">-</strong></div>
+                <div class="comparison-row"><span>Custo marítimo estimado</span><strong id="cmpSeaTotal">-</strong></div>
+                <div class="comparison-row"><span>Prêmio pago pelo aéreo</span><strong id="cmpPremium">-</strong></div>
+                <div class="comparison-row"><span>Vantagem de velocidade</span><strong id="cmpSpeed">-</strong></div>
+                <div class="comparison-note" id="cmpNote"></div>
+              </div>
+              <div class="disclaimer" id="airDisclaimer">Previsão de frete aéreo com base em tarifas por peso taxável e sobretaxas padrão do setor.</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="riscos" class="panel glass">
+        <div class="panel-header"><div><h2>Radar de Riscos Globais</h2><div class="subhead">Monitoramento de rotas, energia, câmbio e vulnerabilidade operacional</div></div></div>
+        <div id="riskGrid" class="risk-grid"></div>
+        <div class="climate-section">
+          <div class="chart-head"><h3>Clima e ENSO</h3><span class="muted">Dados reais de ONI, risco no Canal do Panamá e clima portuário</span></div>
+          <div id="climateGrid" class="climate-grid"></div>
+          <div id="portWeatherGrid" class="port-weather-grid"></div>
+        </div>
+        <div class="map-wrap">
+          <div class="map-panel glass"><div class="muted" style="margin-bottom:10px;">Mapa com contornos geográficos reais (projeção equiretangular) das principais rotas monitoradas.</div><svg viewBox="0 0 1000 500" aria-label="Mapa mundial de riscos logísticos" style="background: rgba(0,212,255,0.04); border-radius: 16px;">
+            <g class="continents">
+              <path d="M69,61 L139,56 L236,47 L292,61 L319,83 L347,111 L319,125 L306,133 L292,144 L278,161 L275,181 L231,178 L208,189 L194,183 L175,161 L156,139 L156,117 L139,100 L108,83 L42,83 Z" fill="rgba(255,255,255,0.08)" stroke="rgba(255,255,255,0.15)" stroke-width="0.8"/>
+              <path d="M286,222 L333,222 L361,250 L403,264 L389,306 L367,319 L339,347 L319,367 L311,394 L306,403 L297,389 L300,361 L303,333 L306,306 L275,261 L281,244 L286,231 Z" fill="rgba(255,255,255,0.08)" stroke="rgba(255,255,255,0.15)" stroke-width="0.8"/>
+              <path d="M472,131 L475,144 L486,150 L508,133 L519,128 L533,147 L550,139 L564,153 L578,136 L583,122 L611,111 L583,97 L583,83 L569,69 L514,78 L514,111 L486,111 Z" fill="rgba(255,255,255,0.08)" stroke="rgba(255,255,255,0.15)" stroke-width="0.8"/>
+              <path d="M453,192 L453,208 L472,233 L506,233 L525,239 L536,267 L550,344 L589,331 L611,292 L619,258 L642,222 L619,217 L603,208 L592,175 L569,161 L528,147 L483,153 L475,167 Z" fill="rgba(255,255,255,0.08)" stroke="rgba(255,255,255,0.15)" stroke-width="0.8"/>
+              <path d="M597,133 L633,139 L667,125 L708,111 L750,111 L806,106 L875,97 L903,83 L889,125 L861,153 L839,164 L806,194 L778,214 L764,208 L722,228 L700,194 L686,183 L658,178 L633,167 L597,161 L578,147 Z" fill="rgba(255,255,255,0.08)" stroke="rgba(255,255,255,0.15)" stroke-width="0.8"/>
+              <path d="M814,311 L839,300 L861,283 L894,281 L903,297 L925,328 L917,353 L889,356 L875,339 L819,344 L814,322 Z" fill="rgba(255,255,255,0.08)" stroke="rgba(255,255,255,0.15)" stroke-width="0.8"/>
+            </g>
+            <g class="route-layer">
+              <path class="route-line" d="M 838 163 C 720 145, 610 120, 513 106" stroke="#ff4d6d"/>
+              <path class="route-line" d="M 838 163 C 600 180, 350 190, 172 156" stroke="#ffd166"/>
+              <path class="route-line" d="M 371 317 C 500 280, 650 220, 838 163" stroke="#00d4ff"/>
+              <path class="route-line" d="M 528 101 C 450 110, 350 120, 294 137" stroke="#00ff88"/>
+              <path class="route-line" d="M 788 246 C 700 200, 600 150, 513 106" stroke="#ff4d6d"/>
+            </g>
+            <g class="port-layer">
+              <circle class="port-dot" cx="838" cy="163" r="6" style="stroke:#ff4d6d;"/><text class="port-label" x="848" y="159">Shanghai</text>
+              <circle class="port-dot" cx="513" cy="106" r="6" style="stroke:#ff4d6d;"/><text class="port-label" x="523" y="102">Rotterdam</text>
+              <circle class="port-dot" cx="371" cy="317" r="6" style="stroke:#00d4ff;"/><text class="port-label" x="381" y="313">Santos</text>
+              <circle class="port-dot" cx="172" cy="156" r="6" style="stroke:#ffd166;"/><text class="port-label" x="182" y="152">Los Angeles</text>
+              <circle class="port-dot" cx="528" cy="101" r="6" style="stroke:#00ff88;"/><text class="port-label" x="538" y="97">Hamburg</text>
+              <circle class="port-dot" cx="788" cy="246" r="6" style="stroke:#ff4d6d;"/><text class="port-label" x="798" y="242">Singapore</text>
+              <circle class="port-dot" cx="294" cy="137" r="6" style="stroke:#00ff88;"/><text class="port-label" x="304" y="133">New York</text>
+            </g>
+          </svg></div>
+          <div class="news-panel glass"><div class="muted" style="margin-bottom:10px;">Feed ilustrativo — a plataforma ainda não tem uma fonte de notícias em tempo real conectada.</div><div class="news-toolbar"><button class="chip active" data-filter="todos">Todos</button><button class="chip" data-filter="geopolítico">Geopolítico</button><button class="chip" data-filter="energia">Energia</button><button class="chip" data-filter="portos">Portos</button><button class="chip" data-filter="câmbio">Câmbio</button><button class="chip" data-filter="clima">Clima</button></div><div id="newsGrid" class="news-grid"></div></div>
+        </div>
+      </section>
+
+      <section id="rotas" class="panel glass">
+        <div class="panel-header"><div><h2>Análise Comparativa de Rotas</h2><div class="subhead">Comparação de custo, tempo, risco e recomendação operacional</div></div></div>
+        <div class="chart-panel glass"><div class="chart-head"><h3>Comparação de Rotas</h3><span class="muted">Custo médio real, tendência, lead time e risco por par de cidades</span></div><div class="table-wrap"><table class="routes-table"><thead><tr><th>Rota</th><th>Modal</th><th>Custo Médio</th><th>Tendência</th><th>Lead Time</th><th>Risco</th><th>Recomendação</th></tr></thead><tbody id="routesTableBody"></tbody></table></div></div>
+        <div class="chart-panel glass" style="margin-top: 18px;"><div class="chart-head"><h3>Evolução de Custo por Rota — semanal</h3><span class="muted">Custo médio semanal real por par de cidades</span></div><canvas id="routeEvolutionChart" height="120"></canvas></div>
+        <div id="routeCardsGrid" class="route-detail-grid"></div>
+      </section>
+
+      <section id="friday" class="panel glass">
+        <div class="assistant-shell glass">
+          <div class="chat-header"><div class="chat-brand"><div class="chat-name">FRIDAY</div><div class="chat-sub">Assistente de Inteligência em Fretes</div></div><div class="online"><span class="online-dot"></span>Online</div></div>
+          <div id="chatBody" class="chat-body"><div class="message ai">Olá, sou o FRIDAY. Posso ajudar com análise de rota, custos, riscos e oportunidades de embarque.</div></div>
+          <div class="suggestions"><button class="suggestion-chip">Qual rota está mais barata agora?</button><button class="suggestion-chip">Devo embarcar agora ou aguardar?</button><button class="suggestion-chip">O que está impactando o frete Suez?</button><button class="suggestion-chip">Compare frete aéreo vs marítimo</button><button class="suggestion-chip">Qual o melhor mês para embarcar?</button><button class="suggestion-chip">Analise os riscos da rota Transpacífico</button></div>
+          <div class="chat-input-row"><input id="chatInput" class="chat-input" type="text" placeholder="Pergunte ao FRIDAY sobre custos, risco e sazonalidade..." /><button id="sendChatBtn" class="send-btn">Enviar</button></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    // Local Flask API (api.py). Change this if you deploy the backend elsewhere.
+    const API_BASE = 'http://127.0.0.1:5000';
+
+    async function apiGet(path) {
+      const res = await fetch(API_BASE + path);
+      if (!res.ok) throw new Error('GET ' + path + ' failed: ' + res.status);
+      return res.json();
+    }
+
+    async function apiPost(path, body) {
+      const res = await fetch(API_BASE + path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      if (!res.ok) throw new Error('POST ' + path + ' failed: ' + res.status);
+      return res.json();
+    }
+
+    function kpiCard(label, value, trendInner) {
+      return '<div class="kpi-card glass"><div class="kpi-label">' + label + '</div><div class="kpi-value">' + value + '</div>' + trendInner + '</div>';
+    }
+
+    function pctTrend(pct) {
+      var isUp = pct >= 0;
+      return '<div class="trend ' + (isUp ? 'up' : 'down') + '">' + (isUp ? '↑ +' : '▼ ') + Math.abs(pct).toFixed(1) + '%</div>';
+    }
+
+    function safeChart(element, config) {
+      if (typeof Chart !== 'undefined') {
+        return new Chart(element, config);
+      }
+      var canvas = element; 
+      if (!canvas || !canvas.getContext) return { destroy: function () {} };
+      var ctx = canvas.getContext('2d');
+      var width = canvas.width || 400;
+      var height = canvas.height || 220;
+      ctx.clearRect(0, 0, width, height);
+      ctx.fillStyle = 'rgba(255,255,255,0.04)';
+      ctx.fillRect(0, 0, width, height);
+      ctx.strokeStyle = '#00ff88';
+      ctx.lineWidth = 2;
+      ctx.font = '12px sans-serif';
+      ctx.fillStyle = '#dfeaf7';
+      ctx.fillText('Visualização indisponível', 18, 24);
+      var datasets = config && config.data && config.data.datasets ? config.data.datasets : [];
+      if (datasets.length) {
+        var allValues = [];
+        datasets.forEach(function (dataset) {
+          if (Array.isArray(dataset.data)) {
+            dataset.data.forEach(function (value) { allValues.push(Number(value)); });
+          }
+        });
+        if (allValues.length) {
+          var min = Math.min.apply(null, allValues);
+          var max = Math.max.apply(null, allValues);
+          var range = max - min || 1;
+          var left = 20;
+          var top = 30;
+          var right = width - 16;
+          var bottom = height - 18;
+          ctx.strokeStyle = 'rgba(0,255,136,0.7)';
+          ctx.beginPath();
+          datasets.forEach(function (dataset, idx) {
+            if (!Array.isArray(dataset.data)) return;
+            ctx.beginPath();
+            dataset.data.forEach(function (value, pointIndex) {
+              var x = left + (pointIndex / Math.max(dataset.data.length - 1, 1)) * (right - left);
+              var y = bottom - ((Number(value) - min) / range) * (bottom - top);
+              if (pointIndex === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+            });
+            ctx.strokeStyle = idx % 2 === 0 ? '#00ff88' : '#00d4ff';
+            ctx.stroke();
+          });
+        }
+      }
+      return { destroy: function () {} };
+    }
+    const monthLabels = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+    const RISK_COLOR = { 'CRÍTICO': '#ff4d6d', 'ALTO': '#ff4d6d', 'MÉDIO': '#ffd166', 'BAIXO': '#00ff88' };
+    const TICKER_NAMES = { usd_brl: 'USD/BRL', brent: 'Brent', gold: 'Ouro', vix: 'VIX', zim: 'ZIM', bdry: 'BDRY', dxy: 'DXY' };
+
+    // Chart.js can't size a canvas that's inside a display:none panel — it
+    // measures 0x0 and either draws nothing or renders corrupted, which is
+    // why charts on non-default tabs showed "Visualização indisponível".
+    // Fix: only build a tab's charts the first time that tab is actually
+    // shown, once its canvases have real dimensions.
+    const chartsInitialized = { cockpit: false, mercado: false, riscos: false, rotas: false };
+
+    function ensureTabLoaded(tabName) {
+      if (chartsInitialized[tabName]) return Promise.resolve();
+      chartsInitialized[tabName] = true;
+      if (tabName === 'cockpit') {
+        return loadCockpit();
+      } else if (tabName === 'mercado') {
+        return Promise.all([buildMiniCharts(), buildCorrelationTable(), buildImpactList(), buildHeatmap(), loadScfiSection(), loadCommoditySection()]);
+      } else if (tabName === 'riscos') {
+        return loadRisksTab();
+      } else if (tabName === 'rotas') {
+        return loadRoutesTab();
+      }
+      return Promise.resolve();
+    }
+
+    function setActiveTab(tabName) {
+      var tabs = document.querySelectorAll('.tab');
+      for (var i = 0; i < tabs.length; i++) {
+        tabs[i].classList.toggle('active', tabs[i].getAttribute('data-tab') === tabName);
+      }
+      var panels = document.querySelectorAll('.panel');
+      for (var j = 0; j < panels.length; j++) {
+        panels[j].classList.toggle('active', panels[j].id === tabName);
+      }
+      ensureTabLoaded(tabName);
+    }
+
+    function updateClock() {
+      var now = new Date();
+      var target = document.getElementById('current-date');
+      if (target) target.textContent = now.toLocaleString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    }
+
+    function buildFreightIndexChart(freight) {
+      var labels = freight.history.map(function (p) { return p.date.slice(5); });
+      var values = freight.history.map(function (p) { return p.index_value; });
+      safeChart(document.getElementById('freightIndexChart'), {
+        type: 'line',
+        data: { labels: labels, datasets: [{ label: 'Índice de Frete', data: values, borderColor: '#00ff88', backgroundColor: 'rgba(0,255,136,0.14)', fill: true, tension: 0.35, borderWidth: 2.2, pointRadius: 0, pointHoverRadius: 4 }] },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { display: false }, ticks: { color: 'rgba(255,255,255,0.6)' } }, y: { grid: { color: 'rgba(255,255,255,0.08)' }, ticks: { color: 'rgba(255,255,255,0.6)' } } } }
+      });
+    }
+
+    function buildKpiGrid(market, freight, risks) {
+      var alertRoutes = risks.filter(function (r) { return r.label === 'CRÍTICO' || r.label === 'ALTO'; });
+      var worst = risks[0];
+      var cards = [];
+      cards.push(kpiCard('Índice de Frete Global', Math.round(freight.last_value).toLocaleString('pt-BR'), pctTrend(freight.change_pct)));
+      if (market.usd_brl) cards.push(kpiCard('USD/BRL', market.usd_brl.last_close.toFixed(2).replace('.', ','), pctTrend(market.usd_brl.change_pct)));
+      if (market.brent) cards.push(kpiCard('Brent Oil', '$' + market.brent.last_close.toFixed(2), pctTrend(market.brent.change_pct)));
+      if (market.vix) cards.push(kpiCard('VIX', market.vix.last_close.toFixed(2).replace('.', ','), pctTrend(market.vix.change_pct)));
+      if (worst) {
+        cards.push(kpiCard('Risco Geopolítico (' + worst.route + ')', worst.risk_score.toFixed(1) + '/10', '<div class="trend flat" style="color:' + (RISK_COLOR[worst.label] || '#ffd166') + ';">● ' + worst.label + '</div>'));
+      }
+      cards.push(kpiCard('Rotas em Alerta', String(alertRoutes.length), '<div class="trend ' + (alertRoutes.length > 0 ? 'down' : 'up') + '">' + (alertRoutes.length > 0 ? '▲ ' : '✓ ') + alertRoutes.length + ' rotas</div>'));
+      document.getElementById('kpiGrid').innerHTML = cards.join('');
+    }
+
+    function statusFromLabel(label) {
+      if (label === 'CRÍTICO' || label === 'ALTO') return { cls: 'vermelho', text: 'Vermelho' };
+      if (label === 'MÉDIO') return { cls: 'amarelo', text: 'Amarelo' };
+      return { cls: 'verde', text: 'Verde' };
+    }
+
+    function buildRouteSemaphore(risks) {
+      var html = risks.map(function (r) {
+        var status = statusFromLabel(r.label);
+        var desc = 'Atraso médio de ' + r.avg_delay_days.toFixed(1) + ' dias e ' + r.late_rate_pct.toFixed(0) + '% dos embarques fora do prazo (score de risco ' + r.risk_score.toFixed(1) + '/10, com base em ' + r.shipments.toLocaleString('pt-BR') + ' embarques reais).';
+        return '<div class="route-card glass"><div class="status-row"><h4>' + r.route + '</h4><span class="status-badge ' + status.cls + '"><span class="dot ' + status.cls + '"></span>' + status.text + '</span></div><p>' + desc + '</p></div>';
+      }).join('');
+      document.getElementById('routeSemaphore').innerHTML = html;
+    }
+
+    function buildAlertGrid(risks, market) {
+      var cards = [];
+      var worst = risks[0];
+      var best = risks[risks.length - 1];
+      if (worst) {
+        cards.push('<div class="alert-card glass"><div class="icon">⚠️</div><div class="alert-tag critico">' + worst.label + '</div><h3>Rota ' + worst.route + ' em atenção</h3><p>Score de risco ' + worst.risk_score.toFixed(1) + '/10, com ' + worst.late_rate_pct.toFixed(0) + '% dos embarques atrasados nos dados históricos.</p></div>');
+      }
+      var movers = Object.keys(market).map(function (key) { return Object.assign({ ticker: key }, market[key]); });
+      movers.sort(function (a, b) { return Math.abs(b.change_pct) - Math.abs(a.change_pct); });
+      if (movers.length) {
+        var top = movers[0];
+        var name = TICKER_NAMES[top.ticker] || top.ticker.toUpperCase();
+        var dir = top.change_pct >= 0 ? 'alta' : 'queda';
+        cards.push('<div class="alert-card glass"><div class="icon">📈</div><div class="alert-tag atencao">Atenção</div><h3>' + name + ' em ' + dir + '</h3><p>Variação de ' + top.change_pct.toFixed(1) + '% no último pregão, com impacto direto no custo de frete.</p></div>');
+      }
+      if (best) {
+        cards.push('<div class="alert-card glass"><div class="icon">ℹ️</div><div class="alert-tag info">Info</div><h3>Rota mais estável: ' + best.route + '</h3><p>Menor score de risco entre as rotas monitoradas (' + best.risk_score.toFixed(1) + '/10), com maior previsibilidade de lead time.</p></div>');
+      }
+      document.getElementById('alertGrid').innerHTML = cards.join('');
+    }
+
+    async function checkHealth() {
+      var pill = document.getElementById('livePill');
+      var text = document.getElementById('livePillText');
+      try {
+        var health = await apiGet('/api/health');
+        if (health.status === 'ok' && health.data_loaded && health.model_loaded) {
+          text.textContent = 'Live';
+          pill.style.borderColor = 'rgba(0,255,136,0.35)';
+          pill.style.color = '#8affc4';
+        } else {
+          text.textContent = 'Dados parciais';
+        }
+      } catch (err) {
+        text.textContent = 'API offline';
+        console.error(err);
+      }
+    }
+
+    const COMMODITY_LABELS = {
+      'BZ=F': 'Brent', 'CL=F': 'WTI', 'NG=F': 'Gás Natural', 'HO=F': 'Óleo Aquecimento',
+      'GC=F': 'Ouro', 'SI=F': 'Prata', 'HG=F': 'Cobre', 'SLX': 'Aço (SLX)',
+      'ZS=F': 'Soja', 'ZC=F': 'Milho', 'SB=F': 'Açúcar', 'KC=F': 'Café', 'ZW=F': 'Trigo',
+      'ZIM': 'ZIM', 'MATX': 'Matson', 'DAC': 'Danaos', 'SBLK': 'Star Bulk', 'BDRY': 'BDRY',
+      'DX-Y.NYB': 'DXY', 'EURUSD=X': 'EUR/USD', 'BRL=X': 'USD/BRL', 'CNY=X': 'USD/CNY', 'JPY=X': 'USD/JPY',
+      '^VIX': 'VIX', '^GSPC': 'S&P 500', '^TNX': 'Treasury 10Y'
+    };
+    const CATEGORY_LABELS = { energy: 'Energia', metals: 'Metais', agriculture: 'Agricultura', macro: 'FX', shipping: 'Shipping' };
+
+    function findCommodity(commodities, ticker) {
+      for (var cat in commodities) {
+        var found = (commodities[cat] || []).find(function (e) { return e.ticker === ticker; });
+        if (found) return found;
+      }
+      return null;
+    }
+
+    function buildCommodityStrip(commodities) {
+      var picks = [['BZ=F', 'Brent'], ['HG=F', 'Cobre'], ['ZS=F', 'Soja'], ['BRL=X', 'USD/BRL']];
+      var cards = picks.map(function (p) {
+        var entry = findCommodity(commodities, p[0]);
+        if (!entry) return '';
+        var trend = entry.change_30d_pct !== null ? pctTrend(entry.change_30d_pct) : '<div class="trend flat">-</div>';
+        return '<div class="kpi-card commodity-chip glass"><div class="kpi-label">' + p[1] + '</div><div class="kpi-value">' + entry.latest_close.toLocaleString('pt-BR', { maximumFractionDigits: 2 }) + '</div>' + trend + '</div>';
+      }).join('');
+      document.getElementById('commodityStrip').innerHTML = cards;
+    }
+
+    function severeWeather(portWeather) {
+      return (portWeather || []).find(function (p) { return p.weathercode >= 65 || p.windspeed_10m_max_kmh > 40; });
+    }
+
+    function buildCockpitClimateAlert(climate) {
+      var el = document.getElementById('cockpitClimateAlert');
+      var oni = climate.oni_current;
+      var severe = severeWeather(climate.port_weather_latest);
+      var triggers = [];
+      if (oni && oni.oni_value > 0.5) triggers.push('El Niño ativo (ONI ' + oni.oni_value.toFixed(2) + ') — risco de seca no Canal do Panamá');
+      if (severe) {
+        var reason = severe.weathercode >= 65
+          ? 'precipitação intensa, código ' + severe.weathercode
+          : 'vento de ' + severe.windspeed_10m_max_kmh.toFixed(0) + ' km/h';
+        triggers.push('Clima severo em ' + severe.port + ' (' + reason + ')');
+      }
+      if (!triggers.length) { el.innerHTML = ''; return; }
+      var isSevere = !!severe || (oni && oni.oni_value > 1.0);
+      el.innerHTML = '<div class="climate-alert' + (isSevere ? ' severe' : '') + '"><span class="icon">🌎</span><span>' + triggers.join(' · ') + '</span></div>';
+    }
+
+    async function loadCockpit() {
+      try {
+        var results = await Promise.all([apiGet('/api/market'), apiGet('/api/freight_index?days=90'), apiGet('/api/risks'), apiGet('/api/commodities'), apiGet('/api/risk/climate')]);
+        var market = results[0], freight = results[1], risks = results[2], commodities = results[3], climate = results[4];
+        buildKpiGrid(market, freight, risks);
+        buildRouteSemaphore(risks);
+        buildAlertGrid(risks, market);
+        buildFreightIndexChart(freight);
+        buildCommodityStrip(commodities);
+        buildCockpitClimateAlert(climate);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    async function buildMiniCharts() {
+      var series = [
+        ['miniUsdChart', 'usd_brl', '#00ff88'],
+        ['miniBrentChart', 'brent', '#00d4ff'],
+        ['miniZimChart', 'zim', '#ffd166'],
+        ['miniBdryChart', 'bdry', '#7af9c5']
+      ];
+      for (var i = 0; i < series.length; i++) {
+        var id = series[i][0], ticker = series[i][1], color = series[i][2];
+        try {
+          var history = await apiGet('/api/market/history?ticker=' + ticker + '&days=30');
+          var labels = history.map(function (p) { return p.date.slice(5); });
+          var values = history.map(function (p) { return p.close; });
+          safeChart(document.getElementById(id), { type: 'line', data: { labels: labels, datasets: [{ data: values, borderColor: color, backgroundColor: 'rgba(0,255,136,0.04)', fill: true, borderWidth: 2, pointRadius: 0, tension: 0.28 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { display: false } } } });
+        } catch (err) {
+          console.error(err);
+        }
+      }
+    }
+
+    async function buildCorrelationTable() {
+      try {
+        var data = await apiGet('/api/correlations');
+        var labelMap = { usd_brl_close: 'USD/BRL', brent_close: 'Brent', gold_close: 'Ouro', vix_close: 'VIX', zim_close: 'ZIM', bdry_close: 'BDRY', dxy_close: 'DXY' };
+        function badge(v) {
+          var cls = v >= 0.5 ? 'up' : (v <= -0.3 ? 'down' : 'flat');
+          return '<span class="cell-badge ' + cls + '">' + v.toFixed(2) + '</span>';
+        }
+        var html = data.map(function (row) {
+          return '<tr><td>' + (labelMap[row.variable] || row.variable) + '</td><td>' + badge(row.atlantic) + '</td><td>' + badge(row.pacific) + '</td><td>' + badge(row.suez) + '</td><td>' + badge(row.intra_asia) + '</td></tr>';
+        }).join('');
+        document.getElementById('correlationTableBody').innerHTML = html;
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    async function buildImpactList() {
+      try {
+        var data = await apiGet('/api/feature_importance');
+        var html = data.map(function (item) {
+          return '<div class="impact-row"><div>' + item.variable + '</div><div class="impact-bar"><div class="impact-fill" style="width:' + item.importance_pct + '%"></div></div><div class="impact-value">' + item.importance_pct.toFixed(1) + '%</div></div>';
+        }).join('');
+        document.getElementById('impactList').innerHTML = html;
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    async function buildHeatmap() {
+      try {
+        var data = await apiGet('/api/seasonality');
+        var months = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
+        function cellStyle(v) {
+          if (v >= 108) return 'background: rgba(255,77,109,' + Math.min(0.10 + (v - 100) / 100, 0.28) + ')';
+          if (v <= 94) return 'background: rgba(0,255,136,' + Math.min(0.10 + (100 - v) / 100, 0.22) + ')';
+          return 'background: rgba(255,209,102,0.12)';
+        }
+        var html = data.map(function (row) {
+          var cells = months.map(function (m) { return '<td style="' + cellStyle(row[m]) + '">' + row[m].toFixed(0) + '</td>'; }).join('');
+          return '<tr><td>' + row.route + '</td>' + cells + '</tr>';
+        }).join('');
+        document.getElementById('heatmapBody').innerHTML = html;
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    const SCFI_ROUTES = ['Comprehensive Index', 'Europe', 'Mediterranean', 'US West Coast', 'US East Coast', 'Persian Gulf', 'Japan', 'Southeast Asia', 'South America', 'Australia'];
+
+    function renderScfiChart(data, route) {
+      var note = document.getElementById('scfiRouteNote');
+      if (route !== 'Comprehensive Index') {
+        note.textContent = 'A Shanghai Shipping Exchange não publica valores por rota no feed público — apenas o Índice Composto é acessível em tempo real. Exibindo o Índice Composto.';
+      } else {
+        note.textContent = '';
+      }
+      var filtered = data.filter(function (d) { return d.scfi_composite !== null; });
+      var labels = filtered.map(function (d) { return d.date.slice(5); });
+      var values = filtered.map(function (d) { return d.scfi_composite; });
+      if (window.scfiChartInstance && window.scfiChartInstance.destroy) window.scfiChartInstance.destroy();
+      window.scfiChartInstance = safeChart(document.getElementById('scfiChart'), {
+        type: 'line',
+        data: { labels: labels, datasets: [{ label: 'SCFI', data: values, borderColor: '#00d4ff', backgroundColor: 'rgba(0,212,255,0.12)', fill: true, borderWidth: 2.2, pointRadius: 3, tension: 0.2 }] },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: 'rgba(255,255,255,0.6)' }, grid: { display: false } }, y: { ticks: { color: 'rgba(255,255,255,0.6)' }, grid: { color: 'rgba(255,255,255,0.08)' } } } }
+      });
+    }
+
+    async function loadScfiSection() {
+      var select = document.getElementById('scfiRouteSelect');
+      select.innerHTML = SCFI_ROUTES.map(function (r) { return '<option value="' + r + '">' + r + '</option>'; }).join('');
+      try {
+        var data = await apiGet('/api/freight_rates');
+        select.onchange = function () { renderScfiChart(data, select.value); };
+        renderScfiChart(data, 'Comprehensive Index');
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    function renderCommodityCategory(commodities, category) {
+      var entries = commodities[category] || [];
+      var html = entries.map(function (e) {
+        var label = COMMODITY_LABELS[e.ticker] || e.ticker;
+        var trendCls = e.change_30d_pct === null ? 'flat' : (e.change_30d_pct >= 0 ? 'up' : 'down');
+        var trendTxt = e.change_30d_pct === null ? '-' : (e.change_30d_pct >= 0 ? '+' : '') + e.change_30d_pct.toFixed(1) + '%';
+        return '<div class="commodity-row glass"><div><div class="name">' + label + '</div><div class="muted">' + e.ticker + '</div></div><div class="price"><span class="cell-badge ' + trendCls + '">' + trendTxt + '</span><small>' + e.latest_close.toLocaleString('pt-BR', { maximumFractionDigits: 2 }) + '</small></div></div>';
+      }).join('');
+      document.getElementById('commodityTableGrid').innerHTML = html || '<div class="muted">Sem dados</div>';
+    }
+
+    function buildCommodityCategoryTabs(commodities) {
+      var categories = ['energy', 'metals', 'agriculture', 'macro'];
+      var tabsEl = document.getElementById('commodityCategoryTabs');
+      tabsEl.innerHTML = categories.map(function (cat, idx) {
+        return '<button class="category-tab' + (idx === 0 ? ' active' : '') + '" data-category="' + cat + '">' + CATEGORY_LABELS[cat] + '</button>';
+      }).join('');
+      tabsEl.querySelectorAll('.category-tab').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          tabsEl.querySelectorAll('.category-tab').forEach(function (b) { b.classList.toggle('active', b === btn); });
+          renderCommodityCategory(commodities, btn.getAttribute('data-category'));
+        });
+      });
+      renderCommodityCategory(commodities, categories[0]);
+    }
+
+    async function loadCommoditySection() {
+      try {
+        var commodities = await apiGet('/api/commodities');
+        buildCommodityCategoryTabs(commodities);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    function corridorRiskLabel(score) {
+      if (score >= 7) return 'CRÍTICO';
+      if (score >= 5) return 'ALTO';
+      if (score >= 3) return 'MÉDIO';
+      return 'BAIXO';
+    }
+
+    function buildRiskGrid(corridors) {
+      var badgeClass = { 'CRÍTICO': 'red', 'ALTO': 'red', 'MÉDIO': 'yellow', 'BAIXO': 'green' };
+      var html = corridors.map(function (c) {
+        var label = corridorRiskLabel(c.composite_score);
+        return '<div class="risk-card glass"><div class="risk-head"><h3>' + c.corridor + '</h3><span class="score-badge ' + (badgeClass[label] || 'yellow') + '">' + c.composite_score.toFixed(1) + '</span></div><div class="value-row"><span class="risk-score">' + label + '</span></div><p>Geopolítico ' + c.geopolitical_risk.toFixed(1) + ' · Econômico ' + c.economic_risk.toFixed(1) + ' · Clima ' + c.climate_risk.toFixed(1) + ' · Operacional ' + c.operational_risk.toFixed(1) + ' · Mercado ' + c.market_risk.toFixed(1) + ' (0-10 cada, pesos 30/20/20/15/15%).</p></div>';
+      }).join('');
+      document.getElementById('riskGrid').innerHTML = html;
+    }
+
+    function weatherIcon(code) {
+      if (code >= 95) return '⛈️';
+      if (code >= 80) return '🌧️';
+      if (code >= 60) return '🌦️';
+      if (code >= 45) return '🌫️';
+      if (code >= 1) return '⛅';
+      return '☀️';
+    }
+
+    function buildClimateSection(climate) {
+      var oni = climate.oni_current;
+      var panama = climate.panama_canal_risk;
+      var cards = [];
+      if (oni) {
+        cards.push('<div class="climate-card glass"><h4>ONI / ENSO</h4><div class="climate-value">' + oni.oni_value.toFixed(2) + '</div><div class="muted">' + oni.enso_phase + ' · ' + oni.season + ' ' + oni.year + '</div></div>');
+      }
+      if (panama) {
+        cards.push('<div class="climate-card glass"><h4>Canal do Panamá</h4><div class="climate-value">' + panama.panama_drought_risk + '</div><div class="muted">' + panama.panama_draft_restriction_outlook + '</div></div>');
+      }
+      document.getElementById('climateGrid').innerHTML = cards.join('');
+
+      var ports = climate.port_weather_latest || [];
+      document.getElementById('portWeatherGrid').innerHTML = ports.map(function (p) {
+        return '<div class="port-weather-card glass"><h5>' + weatherIcon(p.weathercode) + ' ' + p.port + '</h5><div class="row"><span>Vento máx.</span><span>' + p.windspeed_10m_max_kmh.toFixed(0) + ' km/h</span></div><div class="row"><span>Precipitação</span><span>' + p.precipitation_sum_mm.toFixed(1) + ' mm</span></div></div>';
+      }).join('');
+    }
+
+    async function loadRisksTab() {
+      try {
+        var results = await Promise.all([apiGet('/api/risk/corridors'), apiGet('/api/risk/climate')]);
+        buildRiskGrid(results[0]);
+        buildClimateSection(results[1]);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    const SEGMENT_COLORS = ['#00ff88', '#00d4ff', '#ffd166', '#ff4d6d', '#c4a8ff', '#8be9fd', '#7bffca', '#9ae9ff', '#ff8ea0', '#f5d491', '#6fffb0', '#5fd0ff'];
+    const MARITIME_CARGO_TO_OPT_CATEGORY = { 'Geral': 'Textiles', 'Perigosa': 'Pharmaceuticals', 'Refrigerada': 'Pharmaceuticals', 'Granel Sólido': 'Raw Materials', 'Granel Líquido': 'Raw Materials', 'Projeto/OOG': 'Raw Materials', 'Farmacêutico': 'Pharmaceuticals', 'Automotivo': 'Consumer Electronics' };
+
+    function renderBreakdown(bodyId, barId, items, totalUsd) {
+      var rows = items.map(function (item, idx) {
+        var swatch = '<span class="swatch" style="background:' + SEGMENT_COLORS[idx % SEGMENT_COLORS.length] + ';display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:7px;"></span>';
+        return '<tr><td>' + swatch + item.label + '</td><td>$' + item.value.toLocaleString('en-US', { maximumFractionDigits: 2 }) + '</td><td>' + item.pct.toFixed(1) + '%</td></tr>';
+      }).join('') + '<tr class="total-row"><td>TOTAL</td><td>$' + Math.round(totalUsd).toLocaleString('en-US') + '</td><td>100%</td></tr>';
+      document.getElementById(bodyId).innerHTML = rows;
+
+      var segsHtml = '', legendHtml = '';
+      items.forEach(function (item, idx) {
+        if (item.value <= 0) return;
+        var color = SEGMENT_COLORS[idx % SEGMENT_COLORS.length];
+        segsHtml += '<div class="stacked-bar-seg" style="width:' + item.pct + '%;background:' + color + ';" title="' + item.label + ': ' + item.pct.toFixed(1) + '%"></div>';
+        legendHtml += '<span><span class="swatch" style="background:' + color + ';"></span>' + item.label + '</span>';
+      });
+      document.getElementById(barId).innerHTML = '<div class="stacked-bar-legend">' + legendHtml + '</div><div class="stacked-bar">' + segsHtml + '</div>';
+    }
+
+    function renderBenchmarkBadge(elId, vsMarketPct) {
+      var el = document.getElementById(elId);
+      if (vsMarketPct === null || vsMarketPct === undefined) { el.innerHTML = ''; return; }
+      var isAbove = vsMarketPct >= 0;
+      el.innerHTML = '<span class="benchmark-badge ' + (isAbove ? 'above' : 'below') + '">' + (isAbove ? '▲' : '▼') + ' ' + Math.abs(vsMarketPct).toFixed(1) + '% ' + (isAbove ? 'acima' : 'abaixo') + ' do mercado para esta rota</span>';
+    }
+
+    function buildMaritimePayload() {
+      return {
+        origin_port: document.getElementById('originPort').value.trim(),
+        destination_port: document.getElementById('destinationPort').value.trim(),
+        container_type: document.getElementById('containerType').value,
+        container_qty: Number(document.getElementById('containerQty').value || 1),
+        gross_weight_kg: Number(document.getElementById('maritimeWeight').value || 0),
+        volume_cbm: Number(document.getElementById('maritimeVolume').value || 0),
+        incoterm: document.getElementById('maritimeIncoterm').value,
+        cargo_type: document.getElementById('maritimeCargoType').value,
+        commodity_hs: '',
+        shipment_date: document.getElementById('maritimeDate').value,
+        transport_mode: 'Sea'
+      };
+    }
+
+    function buildAirPayload() {
+      return {
+        origin_airport_iata: document.getElementById('originAirport').dataset.iata || document.getElementById('originAirport').value.trim(),
+        destination_airport_iata: document.getElementById('destinationAirport').dataset.iata || document.getElementById('destinationAirport').value.trim(),
+        gross_weight_kg: Number(document.getElementById('airWeight').value || 0),
+        volume_m3: Number(document.getElementById('airVolume').value || 0),
+        cargo_type: document.getElementById('airCargoType').value,
+        incoterm: document.getElementById('airIncoterm').value,
+        service_type: document.getElementById('airServiceType').value,
+        shipment_date: document.getElementById('airDate').value,
+        transport_mode: 'Air'
+      };
+    }
+
+    async function runMaritimePrediction() {
+      try {
+        var payload = buildMaritimePayload();
+        var data = await apiPost('/api/predict/maritime', payload);
+        document.getElementById('maritimeTotalPrice').textContent = '$' + Math.round(data.total_usd).toLocaleString('en-US');
+        document.getElementById('maritimeConfidenceRange').textContent = '$' + Math.round(data.confidence_low).toLocaleString('en-US') + ' - $' + Math.round(data.confidence_high).toLocaleString('en-US');
+        document.getElementById('maritimeFactorGrid').innerHTML =
+          '<div class="factor-card"><small>Custo / Container</small><strong>$' + Math.round(data.cost_per_container).toLocaleString('en-US') + '</strong></div>'
+          + '<div class="factor-card"><small>Custo / kg</small><strong>$' + data.cost_per_kg.toFixed(3) + '</strong></div>'
+          + '<div class="factor-card"><small>Trânsito</small><strong>' + data.transit_time_days.toFixed(1) + ' dias</strong></div>';
+        renderBenchmarkBadge('maritimeBenchmarkBadge', data.vs_market_pct);
+        renderBreakdown('maritimeBreakdownBody', 'maritimeStackedBar', data.breakdown_chart_data, data.total_usd);
+        document.getElementById('maritimeIncotermNote').textContent = data.incoterm_scope + (data.currency_rate_usd_brl ? ' · USD/BRL ' + data.currency_rate_usd_brl.toFixed(2) : '');
+        document.getElementById('resultCard').classList.add('visible');
+
+        var category = MARITIME_CARGO_TO_OPT_CATEGORY[payload.cargo_type] || 'Textiles';
+        await runOptimization('Sea', data.route_type, category, payload.gross_weight_kg);
+      } catch (err) {
+        console.error(err);
+        document.getElementById('maritimeTotalPrice').textContent = 'Erro';
+        document.getElementById('maritimeConfidenceRange').textContent = 'Não foi possível consultar a API em ' + API_BASE + '. Verifique se "python api.py" está em execução, e se origem/destino foram selecionados na lista.';
+        document.getElementById('resultCard').classList.add('visible');
+      }
+    }
+
+    async function runAirPrediction() {
+      try {
+        var payload = buildAirPayload();
+        var data = await apiPost('/api/predict/air', payload);
+        document.getElementById('airTotalPrice').textContent = '$' + Math.round(data.total_usd).toLocaleString('en-US');
+        document.getElementById('airConfidenceRange').textContent = '$' + Math.round(data.confidence_low).toLocaleString('en-US') + ' - $' + Math.round(data.confidence_high).toLocaleString('en-US');
+        document.getElementById('airRealWeightOut').textContent = data.gross_weight_kg.toLocaleString('pt-BR') + ' kg';
+        document.getElementById('airCubicWeightOut').textContent = (data.volume_m3 * 167).toFixed(1) + ' kg';
+        document.getElementById('airChargeableWeightOut').textContent = data.chargeable_weight_kg.toLocaleString('pt-BR') + ' kg';
+        document.getElementById('airDensityOut').textContent = (data.density_kg_m3 !== null ? data.density_kg_m3.toFixed(1) + ' kg/m³' : '-');
+        renderBenchmarkBadge('airBenchmarkBadge', data.vs_market_pct);
+        renderBreakdown('airBreakdownBody', 'airStackedBar', data.breakdown_chart_data, data.total_usd);
+        document.getElementById('airIncotermNote').textContent = data.incoterm_scope + (data.currency_rate_usd_brl ? ' · USD/BRL ' + data.currency_rate_usd_brl.toFixed(2) : '');
+
+        var cmp = data.comparison_vs_sea;
+        document.getElementById('cmpAirTotal').textContent = '$' + Math.round(data.total_usd).toLocaleString('en-US');
+        document.getElementById('cmpSeaTotal').textContent = '$' + Math.round(cmp.sea_total_usd).toLocaleString('en-US');
+        document.getElementById('cmpPremium').textContent = '+$' + Math.round(cmp.air_premium_usd).toLocaleString('en-US') + (cmp.air_premium_pct !== null ? ' (+' + cmp.air_premium_pct.toFixed(0) + '%)' : '');
+        document.getElementById('cmpSpeed').textContent = cmp.speed_advantage_days.toFixed(1) + ' dias mais rápido';
+        document.getElementById('cmpNote').textContent = cmp.value_per_kg_breakeven_usd !== null
+          ? 'Vale a pena se o valor da carga superar $' + cmp.value_per_kg_breakeven_usd.toFixed(2) + '/kg (custo de oportunidade do capital parado no trânsito marítimo mais lento).'
+          : '';
+
+        document.getElementById('resultCard').classList.add('visible');
+      } catch (err) {
+        console.error(err);
+        document.getElementById('airTotalPrice').textContent = 'Erro';
+        document.getElementById('airConfidenceRange').textContent = 'Não foi possível consultar a API em ' + API_BASE + '. Verifique se "python api.py" está em execução, e se origem/destino foram selecionados na lista.';
+        document.getElementById('resultCard').classList.add('visible');
+      }
+    }
+
+    async function runOptimization(modal, route, category, weightKg) {
+      try {
+        var payload = { modal: modal, route: route, category: category, weight_kg: weightKg };
+        var data = await apiPost('/api/optimize', payload);
+
+        var cheapest = data.cheapest_route;
+        document.getElementById('cheapestRoute').textContent = cheapest.best_modal + ' / ' + cheapest.best_route + ' · $' + Math.round(cheapest.predicted_cost).toLocaleString('en-US');
+
+        var fastest = data.fastest_route;
+        document.getElementById('fastestRoute').textContent = fastest.best_modal + ' / ' + fastest.best_route + ' · ' + fastest.predicted_lead_time_days.toFixed(1) + ' dias';
+
+        var bestMonth = data.best_month;
+        document.getElementById('bestMonth').textContent = monthLabels[bestMonth.best_month - 1] + ' · economia até ' + bestMonth.potential_savings_pct.toFixed(1) + '%';
+
+        var monthly = bestMonth.monthly_costs || [];
+        var seasonLabels = monthly.map(function (m) { return monthLabels[m.month - 1]; });
+        var seasonValues = monthly.map(function (m) { return Math.round(m.cost); });
+        var bestIdx = 0;
+        for (var i = 1; i < monthly.length; i++) if (monthly[i].cost < monthly[bestIdx].cost) bestIdx = i;
+        if (window.seasonalityChart && typeof window.seasonalityChart.destroy === 'function') window.seasonalityChart.destroy();
+        window.seasonalityChart = safeChart(document.getElementById('seasonalityBarChart'), { type: 'bar', data: { labels: seasonLabels, datasets: [{ label: 'Custo mensal previsto', data: seasonValues, backgroundColor: seasonValues.map(function (_, idx) { return idx === bestIdx ? 'rgba(0,255,136,0.9)' : 'rgba(0,212,255,0.45)'; }), borderRadius: 8 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: 'rgba(255,255,255,0.7)' }, grid: { display: false } }, y: { ticks: { color: 'rgba(255,255,255,0.7)' }, grid: { color: 'rgba(255,255,255,0.08)' } } } } });
+
+        var pareto = data.pareto_points || [];
+        if (window.paretoChart && typeof window.paretoChart.destroy === 'function') window.paretoChart.destroy();
+        window.paretoChart = safeChart(document.getElementById('paretoChart'), { type: 'scatter', data: { datasets: [{ label: 'Pareto', data: pareto.map(function (pt) { return { x: pt.lead_time, y: pt.cost, label: pt.modal + ' / ' + pt.route }; }), backgroundColor: 'rgba(0,255,136,0.8)', pointRadius: 5, pointHoverRadius: 7 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: function (context) { return context.raw.label + ' · Custo $' + Math.round(context.raw.y).toLocaleString('en-US') + ' · Lead ' + context.raw.x.toFixed(1) + 'd'; } } } }, scales: { x: { title: { display: true, text: 'Lead Time (dias)', color: 'rgba(255,255,255,0.8)' }, ticks: { color: 'rgba(255,255,255,0.6)' }, grid: { color: 'rgba(255,255,255,0.08)' } }, y: { title: { display: true, text: 'Custo (USD)', color: 'rgba(255,255,255,0.8)' }, ticks: { color: 'rgba(255,255,255,0.6)' }, grid: { color: 'rgba(255,255,255,0.08)' } } } } });
+        document.getElementById('optimizationPanel').classList.add('visible');
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    function recommendationClass(rec) {
+      return rec === 'Contratar' ? 'contratar' : (rec === 'Aguardar' ? 'aguardar' : 'evitar');
+    }
+
+    function shortCity(name) {
+      return (name || '').split(',')[0];
+    }
+
+    function buildRoutesTable(pairs) {
+      var html = pairs.map(function (p) {
+        var trendCls = p.trend_pct >= 0 ? 'up' : 'down';
+        var trendArrow = p.trend_pct >= 0 ? '↑' : '↓';
+        var riskCls = p.avg_risk_score >= 6 ? 'down' : (p.avg_risk_score >= 3.5 ? 'flat' : 'up');
+        return '<tr><td>' + p.origin + ' → ' + p.destination + '</td><td>' + p.modal + '</td><td>$' + Math.round(p.avg_cost_usd).toLocaleString('en-US') + '</td>'
+          + '<td><span class="cell-badge ' + trendCls + '">' + trendArrow + ' ' + Math.abs(p.trend_pct).toFixed(1) + '%</span></td>'
+          + '<td>' + Math.round(p.avg_lead_time_days) + ' dias</td>'
+          + '<td><span class="cell-badge ' + riskCls + '">' + p.avg_risk_score.toFixed(1) + '</span></td>'
+          + '<td><span class="route-badge ' + recommendationClass(p.recommendation) + '">' + p.recommendation + '</span></td></tr>';
+      }).join('');
+      document.getElementById('routesTableBody').innerHTML = html;
+    }
+
+    function buildRouteEvolutionChart(pairs) {
+      var palette = ['#00ff88', '#00d4ff', '#ffd166', '#8be9fd', '#ff4d6d', '#c4a8ff'];
+      var weekSet = {};
+      pairs.forEach(function (p) { p.history.forEach(function (h) { weekSet[h.week] = true; }); });
+      var weeks = Object.keys(weekSet).sort();
+      var datasets = pairs.map(function (p, idx) {
+        var byWeek = {};
+        p.history.forEach(function (h) { byWeek[h.week] = h.avg_cost_usd; });
+        var data = weeks.map(function (w) { return byWeek[w] !== undefined ? byWeek[w] : null; });
+        return { label: shortCity(p.origin) + ' → ' + shortCity(p.destination), data: data, borderColor: palette[idx % palette.length], backgroundColor: 'rgba(255,255,255,0.02)', fill: false, tension: 0.32, borderWidth: 2.2, pointRadius: 0, spanGaps: true };
+      });
+      safeChart(document.getElementById('routeEvolutionChart'), { type: 'line', data: { labels: weeks.map(function (w) { return w.slice(5); }), datasets: datasets }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: 'rgba(255,255,255,0.8)' } } }, scales: { x: { ticks: { color: 'rgba(255,255,255,0.58)' }, grid: { display: false } }, y: { ticks: { color: 'rgba(255,255,255,0.58)' }, grid: { color: 'rgba(255,255,255,0.08)' } } } } });
+    }
+
+    function buildRouteCards(pairs) {
+      var grid = document.getElementById('routeCardsGrid');
+      grid.innerHTML = pairs.map(function (p, idx) {
+        return '<div class="route-detail-card glass"><div class="flag-row"><h4>' + p.origin + ' → ' + p.destination + '</h4></div><p>Custo médio: <span class="mini-value">$' + Math.round(p.avg_cost_usd).toLocaleString('en-US') + '</span></p><p>Lead time: <strong>' + Math.round(p.avg_lead_time_days) + ' dias</strong></p><p>Risco: <strong>' + p.avg_risk_score.toFixed(1) + '</strong></p><button class="sim-btn" data-idx="' + idx + '">Simular esta Rota</button></div>';
+      }).join('');
+      grid.querySelectorAll('.sim-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var pair = pairs[Number(this.getAttribute('data-idx'))];
+          setForecastMode('maritime');
+          document.getElementById('originPort').value = shortCity(pair.origin);
+          document.getElementById('destinationPort').value = shortCity(pair.destination);
+          setActiveTab('previsao');
+          runMaritimePrediction();
+        });
+      });
+    }
+
+    async function loadRoutesTab() {
+      try {
+        var pairs = await apiGet('/api/routes/pairs?limit=6');
+        buildRoutesTable(pairs);
+        buildRouteEvolutionChart(pairs);
+        buildRouteCards(pairs);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    function buildNewsCards(filter) {
+      var items = [
+        { category: 'geopolítico', impact: 'alto', title: 'Risco no Mar Vermelho eleva preços de bunker e atrasos na rota Suez', desc: 'Navios de longo curso desviam para o Cabo, elevando tempo de trânsito e custos de seguro.', source: 'Reuters', date: '10 Jun 2026', filter: 'geopolítico' },
+        { category: 'energia', impact: 'medio', title: 'OPEP+ mantém corte de produção e pressiona Brent para cima', desc: 'Preço do petróleo continua sustentado por restrições de oferta e demanda forte em logística.', source: 'Bloomberg', date: '11 Jun 2026', filter: 'energia' },
+        { category: 'portos', impact: 'alto', title: 'Porto de Hamburg enfrenta congestionamento por atrasos em operações', desc: 'Navios chegam com maior volume e elevam tempo de espera nas filas de berço.', source: 'TradeWinds', date: '12 Jun 2026', filter: 'portos' },
+        { category: 'câmbio', impact: 'medio', title: 'USD/BRL acelera na semana e afeta custos em reais', desc: 'Ajuste do câmbio torna importações e fretes mais sensíveis a variação cambial.', source: 'BCB', date: '12 Jun 2026', filter: 'câmbio' },
+        { category: 'clima', impact: 'baixo', title: 'Clima mais estável reduz ocorrências de atrasos no Atlântico Norte', desc: 'Condição do tempo melhorou e compressão operacional na rota se reduziu.', source: 'NOAA', date: '13 Jun 2026', filter: 'clima' },
+        { category: 'geopolítico', impact: 'alto', title: 'Risco em rota asiática cresce com pressões comerciais e logística', desc: 'Trânsito em corredores asiáticos segue sensível a mudanças de demanda e restrições.', source: 'FT', date: '13 Jun 2026', filter: 'geopolítico' },
+        { category: 'energia', impact: 'medio', title: 'Gás natural estabiliza e reduz pressão em custos de energia', desc: 'Mercados energéticos mostram ajuste levemente mais calmo para próximo trimestre.', source: 'IEA', date: '14 Jun 2026', filter: 'energia' },
+        { category: 'portos', impact: 'alto', title: 'Santos registra congestionamento pontual por excesso de embarques', desc: 'Operações de exportação passam por fila de equipamentos e maior tempo de atracação.', source: 'Agência Portuária', date: '14 Jun 2026', filter: 'portos' }
+      ];
+      var list = filter === 'todos' ? items : items.filter(function (item) { return item.filter === filter; });
+      var html = list.map(function (item) {
+        return '<div class="news-card glass"><div class="news-meta"><span class="tag ' + item.category + '">' + item.category + '</span><span class="impact-badge ' + item.impact + '">' + (item.impact === 'alto' ? 'Alto' : item.impact === 'medio' ? 'Médio' : 'Baixo') + '</span></div><h4>' + item.title + '</h4><p>' + item.desc + '</p><div class="news-footer"><span>' + item.source + '</span><span>' + item.date + '</span><span class="arrow">→</span></div></div>';
+      }).join('');
+      document.getElementById('newsGrid').innerHTML = html;
+    }
+
+    function attachNewsFilters() {
+      document.querySelectorAll('.chip').forEach(function (chip) {
+        chip.addEventListener('click', function () {
+          var filter = this.getAttribute('data-filter');
+          document.querySelectorAll('.chip').forEach(function (c) {
+            c.classList.toggle('active', c === chip);
+          });
+          buildNewsCards(filter || 'todos');
+        });
+      });
+    }
+
+    function escapeHtml(text) {
+      var div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    function formatAiText(text) {
+      var escaped = escapeHtml(text);
+      escaped = escaped.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+      escaped = escaped.replace(/\n/g, '<br>');
+      return escaped;
+    }
+
+    function appendAIMessage(text, isUser) {
+      var message = document.createElement('div');
+      message.className = 'message ' + (isUser ? 'user' : 'ai');
+      if (isUser) {
+        message.textContent = text;
+      } else {
+        message.innerHTML = formatAiText(text);
+      }
+      var chatBody = document.getElementById('chatBody');
+      chatBody.appendChild(message);
+      chatBody.scrollTop = chatBody.scrollHeight;
+    }
+
+    function showTyping() {
+      var typing = document.createElement('div');
+      typing.className = 'typing';
+      typing.innerHTML = '<span></span><span></span><span></span>';
+      var chatBody = document.getElementById('chatBody');
+      chatBody.appendChild(typing);
+      chatBody.scrollTop = chatBody.scrollHeight;
+      return typing;
+    }
+
+    async function askFriday(userMessage) {
+      var data = await apiPost('/api/friday', { message: userMessage });
+      return data.reply;
+    }
+
+    function bindFriday() {
+      var chatInput = document.getElementById('chatInput');
+      var sendBtn = document.getElementById('sendChatBtn');
+      async function handleSend() {
+        var message = chatInput.value.trim();
+        if (!message) return;
+        appendAIMessage(message, true);
+        chatInput.value = '';
+        var typing = showTyping();
+        try {
+          var response = await askFriday(message);
+          if (typing && typing.parentNode) typing.parentNode.removeChild(typing);
+          appendAIMessage(response, false);
+        } catch (error) {
+          if (typing && typing.parentNode) typing.parentNode.removeChild(typing);
+          appendAIMessage('FRIDAY: não consegui consultar a API neste momento. Verifique se "python api.py" está em execução em ' + API_BASE + '.', false);
+          console.error(error);
+        }
+      }
+      sendBtn.addEventListener('click', handleSend);
+      chatInput.addEventListener('keydown', function (event) { if (event.key === 'Enter') handleSend(); });
+      document.querySelectorAll('.suggestion-chip').forEach(function (chip) { chip.addEventListener('click', function () { chatInput.value = this.textContent.trim(); handleSend(); }); });
+    }
+
+    function setForecastMode(mode) {
+      var isMaritime = mode === 'maritime';
+      document.getElementById('modeMaritimeBtn').classList.toggle('active', isMaritime);
+      document.getElementById('modeAirBtn').classList.toggle('active', !isMaritime);
+      document.getElementById('modeAirBtn').classList.toggle('air', !isMaritime);
+      document.getElementById('maritimeFormPanel').style.display = isMaritime ? 'grid' : 'none';
+      document.getElementById('airFormPanel').style.display = isMaritime ? 'none' : 'grid';
+      document.getElementById('predictMaritimeBtn').style.display = isMaritime ? 'inline-flex' : 'none';
+      document.getElementById('predictAirBtn').style.display = isMaritime ? 'none' : 'inline-flex';
+      document.getElementById('maritimeResults').style.display = isMaritime ? 'block' : 'none';
+      document.getElementById('airResults').style.display = isMaritime ? 'none' : 'block';
+    }
+
+    function debounce(fn, delayMs) {
+      var timer = null;
+      return function () {
+        var args = arguments;
+        clearTimeout(timer);
+        timer = setTimeout(function () { fn.apply(null, args); }, delayMs);
+      };
+    }
+
+    function setupAutocomplete(inputId, listId, endpoint, renderItem, onSelect) {
+      var input = document.getElementById(inputId);
+      var list = document.getElementById(listId);
+
+      var search = debounce(async function (query) {
+        if (query.length < 2) { list.classList.remove('visible'); list.innerHTML = ''; return; }
+        try {
+          var results = await apiGet(endpoint + '?q=' + encodeURIComponent(query) + '&limit=20');
+          if (!results.length) {
+            list.innerHTML = '<div class="autocomplete-empty">Nenhum resultado encontrado</div>';
+            list.classList.add('visible');
+            return;
+          }
+          list.innerHTML = results.map(function (item, idx) {
+            return '<div class="autocomplete-item" data-idx="' + idx + '">' + renderItem(item) + '</div>';
+          }).join('');
+          list.classList.add('visible');
+          Array.prototype.forEach.call(list.querySelectorAll('.autocomplete-item'), function (el) {
+            el.addEventListener('click', function () {
+              onSelect(results[Number(this.getAttribute('data-idx'))]);
+              list.classList.remove('visible');
+            });
+          });
+        } catch (err) {
+          console.error(err);
+        }
+      }, 300);
+
+      input.addEventListener('input', function () { delete input.dataset.iata; search(input.value.trim()); });
+      input.addEventListener('focus', function () { if (input.value.trim().length >= 2) search(input.value.trim()); });
+      document.addEventListener('click', function (event) {
+        if (!list.contains(event.target) && event.target !== input) list.classList.remove('visible');
+      });
+    }
+
+    function setupPortAutocomplete(inputId, listId) {
+      setupAutocomplete(inputId, listId, '/api/ports', function (port) {
+        return port.port_name + '<small>' + port.country + ' · ' + port.port_size + '</small>';
+      }, function (port) {
+        document.getElementById(inputId).value = port.port_name;
+      });
+    }
+
+    function setupAirportAutocomplete(inputId, listId) {
+      setupAutocomplete(inputId, listId, '/api/airports', function (airport) {
+        return airport.iata + ' — ' + airport.name + '<small>' + airport.city + ', ' + airport.country + '</small>';
+      }, function (airport) {
+        var input = document.getElementById(inputId);
+        input.value = airport.iata + ' — ' + airport.city;
+        input.dataset.iata = airport.iata;
+      });
+    }
+
+    function updateAirWeightCalc() {
+      var weight = Number(document.getElementById('airWeight').value || 0);
+      var volume = Number(document.getElementById('airVolume').value || 0);
+      var volumetric = volume * 167;
+      var chargeable = Math.max(weight, volumetric);
+      document.getElementById('airVolumetricWeight').value = volumetric.toFixed(1) + ' kg';
+      var chargeableField = document.getElementById('airChargeableWeight');
+      chargeableField.value = chargeable.toFixed(1) + ' kg';
+      chargeableField.classList.toggle('warn', volumetric > weight);
+    }
+
+    async function init() {
+      document.querySelectorAll('.tab').forEach(function (tab) { tab.addEventListener('click', function () { setActiveTab(tab.getAttribute('data-tab')); }); });
+      document.getElementById('modeMaritimeBtn').addEventListener('click', function () { setForecastMode('maritime'); });
+      document.getElementById('modeAirBtn').addEventListener('click', function () { setForecastMode('air'); });
+      document.getElementById('predictMaritimeBtn').addEventListener('click', runMaritimePrediction);
+      document.getElementById('predictAirBtn').addEventListener('click', runAirPrediction);
+      setupPortAutocomplete('originPort', 'originPortList');
+      setupPortAutocomplete('destinationPort', 'destinationPortList');
+      setupAirportAutocomplete('originAirport', 'originAirportList');
+      setupAirportAutocomplete('destinationAirport', 'destinationAirportList');
+      document.getElementById('airWeight').addEventListener('input', updateAirWeightCalc);
+      document.getElementById('airVolume').addEventListener('input', updateAirWeightCalc);
+      updateAirWeightCalc();
+      var today = new Date().toISOString().slice(0, 10);
+      document.getElementById('maritimeDate').value = today;
+      document.getElementById('airDate').value = today;
+      document.getElementById('originPort').value = 'Santos';
+      document.getElementById('destinationPort').value = 'Shanghai';
+      buildNewsCards('todos');
+      attachNewsFilters();
+      bindFriday();
+      updateClock();
+      setInterval(updateClock, 1000);
+
+      await checkHealth();
+      // Only load the tab that's actually visible on start (Cockpit) — the
+      // rest lazy-load on first click via ensureTabLoaded(), which is also
+      // what fixes the "Visualização indisponível" hidden-canvas bug.
+      await ensureTabLoaded('cockpit');
+      runMaritimePrediction();
+    }
+
+    window.addEventListener('load', init);
+  </script>
+</body>
+</html>
