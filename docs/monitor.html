@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>FREIGHT AI | Monitor</title>
+<style>
+  :root {
+    --bg: #000000;
+    --panel: rgba(255,255,255,0.04);
+    --line: rgba(0,255,136,0.2);
+    --green: #00ff88;
+    --blue: #00d4ff;
+    --red: #ff4d6d;
+    --yellow: #ffd166;
+    --text: #f2f7ff;
+    --muted: rgba(242,247,255,0.7);
+    --radius: 16px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; font-family: system-ui, -apple-system, Segoe UI, sans-serif; background: var(--bg); color: var(--text); }
+  body { background: linear-gradient(rgba(0,255,136,0.02), rgba(0,255,136,0.01)), radial-gradient(circle at top left, rgba(0,212,255,0.12), transparent 30%), var(--bg); position: relative; }
+  .shell { max-width: 1300px; margin: 0 auto; padding: 24px 18px 60px; }
+  .glass { background: var(--panel); border: 1px solid var(--line); box-shadow: 0 0 30px rgba(0,255,136,0.1); border-radius: var(--radius); backdrop-filter: blur(12px); }
+
+  header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px; padding: 20px 24px; margin-bottom: 20px; }
+  .brand { font-family: 'Courier New', monospace; font-size: 1.6rem; font-weight: 700; letter-spacing: 0.14em; color: var(--green); text-shadow: 0 0 10px rgba(0,255,136,0.55); margin: 0; }
+  .subtitle { color: var(--muted); font-size: 0.84rem; margin-top: 4px; }
+  .header-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .back-link { display: inline-flex; align-items: center; gap: 6px; color: var(--blue); text-decoration: none; font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; border: 1px solid rgba(0,212,255,0.35); padding: 9px 14px; border-radius: 10px; background: rgba(0,212,255,0.05); }
+  .back-link:hover { background: rgba(0,212,255,0.12); }
+  .refresh-info { color: var(--muted); font-size: 0.76rem; }
+  #countdown { color: var(--green); font-family: 'Courier New', monospace; font-weight: 700; }
+  button.action-btn { border: none; cursor: pointer; padding: 9px 16px; border-radius: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; font-size: 0.74rem; background: linear-gradient(135deg, var(--green), #00c78a); color: #02180f; }
+  button.action-btn.secondary { background: rgba(255,255,255,0.06); color: var(--text); border: 1px solid rgba(255,255,255,0.14); }
+
+  /* Overall health traffic light */
+  .health-banner { display: flex; align-items: center; gap: 20px; padding: 22px 26px; margin-bottom: 22px; }
+  .health-light { width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0; box-shadow: 0 0 22px currentColor; animation: pulse 1.8s infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.55; } }
+  .health-light.green { background: var(--green); color: var(--green); }
+  .health-light.yellow { background: var(--yellow); color: var(--yellow); }
+  .health-light.red { background: var(--red); color: var(--red); }
+  .health-text h2 { margin: 0; font-size: 1.3rem; }
+  .health-text .muted-line { color: var(--muted); font-size: 0.84rem; margin-top: 4px; }
+  .health-stats { display: flex; gap: 26px; margin-left: auto; flex-wrap: wrap; }
+  .health-stat { text-align: center; }
+  .health-stat .num { font-family: 'Courier New', monospace; font-size: 1.5rem; font-weight: 700; }
+  .health-stat .lbl { color: var(--muted); font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.06em; }
+  .health-stat.ok .num { color: var(--green); }
+  .health-stat.fail .num { color: var(--red); }
+  .health-stat.info .num { color: var(--blue); }
+
+  .section-title { display: flex; align-items: center; gap: 10px; margin: 30px 0 14px; }
+  .section-title h3 { margin: 0; font-size: 1.05rem; color: var(--text); }
+  .section-title .count-tag { color: var(--muted); font-size: 0.76rem; }
+
+  /* Endpoint table */
+  .table-wrap { overflow-x: auto; padding: 4px; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.83rem; }
+  th, td { padding: 11px 13px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.06); }
+  th { color: var(--muted); text-transform: uppercase; font-size: 0.68rem; letter-spacing: 0.07em; }
+  tr:last-child td { border-bottom: none; }
+  .method-tag { font-family: 'Courier New', monospace; font-size: 0.68rem; padding: 3px 7px; border-radius: 6px; font-weight: 700; }
+  .method-tag.get { background: rgba(0,212,255,0.1); color: var(--blue); }
+  .method-tag.post { background: rgba(0,255,136,0.1); color: var(--green); }
+  .badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+  .badge .dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; box-shadow: 0 0 8px currentColor; }
+  .badge.pass { background: rgba(0,255,136,0.08); color: var(--green); border: 1px solid rgba(0,255,136,0.25); }
+  .badge.fail { background: rgba(255,77,109,0.08); color: var(--red); border: 1px solid rgba(255,77,109,0.25); }
+  .badge.pending { background: rgba(255,209,102,0.08); color: var(--yellow); border: 1px solid rgba(255,209,102,0.25); }
+  .badge.pending .dot { animation: pulse 1s infinite; }
+  .mono { font-family: 'Courier New', monospace; }
+  .detail-cell { color: var(--muted); font-size: 0.78rem; max-width: 340px; }
+  .path-cell code { color: var(--muted); font-size: 0.78rem; }
+
+  /* Freshness grid */
+  .fresh-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
+  .fresh-card { padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+  .fresh-card .name { font-weight: 700; font-size: 0.86rem; }
+  .fresh-card .age { color: var(--muted); font-size: 0.74rem; margin-top: 3px; }
+  .fresh-dot { width: 13px; height: 13px; border-radius: 50%; flex-shrink: 0; box-shadow: 0 0 10px currentColor; }
+  .fresh-dot.green { background: var(--green); color: var(--green); }
+  .fresh-dot.yellow { background: var(--yellow); color: var(--yellow); }
+  .fresh-dot.red { background: var(--red); color: var(--red); }
+  .fresh-dot.gray { background: #555; color: #555; box-shadow: none; }
+
+  /* Model metrics + inventory */
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; }
+  .stat-card { padding: 16px 14px; text-align: center; }
+  .stat-card .val { font-family: 'Courier New', monospace; font-size: 1.5rem; font-weight: 700; color: var(--green); }
+  .stat-card .lbl { color: var(--muted); font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.06em; margin-top: 5px; }
+  .stat-card.blue .val { color: var(--blue); }
+
+  footer { margin-top: 30px; color: var(--muted); font-size: 0.76rem; text-align: center; }
+</style>
+</head>
+<body>
+  <div class="shell">
+    <header class="glass">
+      <div>
+        <h1 class="brand">FREIGHT AI // MONITOR</h1>
+        <div class="subtitle">Saúde da API, frescor dos dados e métricas do modelo — atualiza a cada 60s</div>
+      </div>
+      <div class="header-actions">
+        <span class="refresh-info">Próxima atualização em <span id="countdown">60</span>s</span>
+        <button id="runNowBtn" class="action-btn">Testar Agora</button>
+        <button id="pauseBtn" class="action-btn secondary">Pausar</button>
+        <a class="back-link" href="../app.html">← Voltar ao Dashboard</a>
+      </div>
+    </header>
+
+    <div id="healthBanner" class="health-banner glass">
+      <div id="healthLight" class="health-light yellow"></div>
+      <div class="health-text">
+        <h2 id="healthTitle">Verificando...</h2>
+        <div class="muted-line" id="healthSubtitle">Executando testes iniciais nos 22 endpoints.</div>
+      </div>
+      <div class="health-stats">
+        <div class="health-stat ok"><div class="num" id="statPass">--</div><div class="lbl">OK</div></div>
+        <div class="health-stat fail"><div class="num" id="statFail">--</div><div class="lbl">Falhas</div></div>
+        <div class="health-stat info"><div class="num" id="statLatency">--</div><div class="lbl">Latência Média (ms)</div></div>
+        <div class="health-stat info"><div class="num" id="statLastRun">--</div><div class="lbl">Última Execução</div></div>
+      </div>
+    </div>
+
+    <div class="section-title"><h3>🔌 Endpoints da API</h3><span class="count-tag" id="endpointCountTag">22 endpoints</span></div>
+    <div class="glass table-wrap">
+      <table>
+        <thead><tr><th>Status</th><th>Endpoint</th><th>Método</th><th>Latência</th><th>Detalhe</th></tr></thead>
+        <tbody id="endpointsBody"></tbody>
+      </table>
+    </div>
+
+    <div class="section-title"><h3>🕐 Frescor dos Dados</h3><span class="count-tag">Verde &lt; 1 dia · Amarelo 1-7 dias · Vermelho &gt; 7 dias</span></div>
+    <div id="freshnessGrid" class="fresh-grid"></div>
+
+    <div class="section-title"><h3>🤖 Métricas do Modelo</h3><span class="count-tag">LightGBM — best_model.pkl</span></div>
+    <div class="glass" style="padding:18px;">
+      <div class="stat-grid">
+        <div class="stat-card"><div class="val">0,9928</div><div class="lbl">R²</div></div>
+        <div class="stat-card"><div class="val">433,81</div><div class="lbl">MAE (US$)</div></div>
+        <div class="stat-card"><div class="val">1.797,14</div><div class="lbl">RMSE (US$)</div></div>
+        <div class="stat-card"><div class="val">5,01%</div><div class="lbl">MAPE</div></div>
+        <div class="stat-card blue"><div class="val">50</div><div class="lbl">Features</div></div>
+        <div class="stat-card blue"><div class="val">10.000</div><div class="lbl">Registros de Treino</div></div>
+        <div class="stat-card blue"><div class="val">31/08/2026</div><div class="lbl">Data do Treino</div></div>
+        <div class="stat-card blue"><div class="val" id="modelLiveCheck">--</div><div class="lbl">Status ao Vivo</div></div>
+      </div>
+      <div style="margin-top:14px;color:var(--muted);font-size:0.78rem;">Selecionado entre 4 algoritmos (Linear Regression, Random Forest, XGBoost, LightGBM) pelo menor RMSE no split 80/20 (random_state=42). Modelos especializados por modal: <strong>Sea</strong> R²=0,9919 (MAE US$ 81) · <strong>Air</strong> R²=0,9793 (MAE US$ 1.799).</div>
+    </div>
+
+    <div class="section-title"><h3>📦 Inventário de Dados</h3><span class="count-tag">Contagens conhecidas + verificação ao vivo onde disponível</span></div>
+    <div class="glass" style="padding:18px;">
+      <div class="stat-grid" id="inventoryGrid">
+        <div class="stat-card"><div class="val">3.804</div><div class="lbl">Portos</div></div>
+        <div class="stat-card"><div class="val">6.072</div><div class="lbl">Aeroportos</div></div>
+        <div class="stat-card"><div class="val">15.000</div><div class="lbl">Embarques (fact_supply_chain)</div></div>
+        <div class="stat-card"><div class="val">26 × 2.436</div><div class="lbl">Commodities (tickers × dias)</div></div>
+        <div class="stat-card" id="inventoryCorridors"><div class="val">--</div><div class="lbl">Corredores de Risco</div></div>
+        <div class="stat-card"><div class="val">19.322</div><div class="lbl">Entradas OFAC (1.540 navios)</div></div>
+      </div>
+    </div>
+
+    <footer>FreightAI Monitor — TCC MBA USP. Testa a API real em <span id="apiBaseLabel" class="mono"></span>, sem dependências externas.</footer>
+  </div>
+
+  <script>
+    const API_BASE = 'http://127.0.0.1:5000';
+    document.getElementById('apiBaseLabel').textContent = API_BASE;
+    const REFRESH_SECONDS = 60;
+    let countdownValue = REFRESH_SECONDS;
+    let countdownTimer = null;
+    let paused = false;
+
+    async function httpGet(path) {
+      const res = await fetch(API_BASE + path);
+      let body = null;
+      try { body = await res.json(); } catch (e) {}
+      if (!res.ok) throw new Error('HTTP ' + res.status + (body && body.error ? ': ' + body.error : ''));
+      return body;
+    }
+
+    async function httpPost(path, payload) {
+      const res = await fetch(API_BASE + path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      let body = null;
+      try { body = await res.json(); } catch (e) {}
+      if (!res.ok) throw new Error('HTTP ' + res.status + (body && body.error ? ': ' + body.error : ''));
+      return body;
+    }
+
+    const today = new Date().toISOString().slice(0, 10);
+
+    function buildEndpointTests() {
+      return [
+        { name: 'Health Check', method: 'GET', path: '/api/health', run: async () => {
+          const d = await httpGet('/api/health');
+          if (d.status !== 'ok' || !d.model_loaded || !d.data_loaded) throw new Error('status/model/data incompletos');
+          return { detail: 'model_loaded=true, data_loaded=true' };
+        }},
+        { name: 'Market Snapshot', method: 'GET', path: '/api/market', run: async () => {
+          const d = await httpGet('/api/market');
+          const tickers = Object.keys(d);
+          if (!tickers.length) throw new Error('nenhum ticker');
+          return { detail: tickers.length + ' tickers', freshness: { source: 'Mercado (câmbio/energia)', date: mostRecentDate(tickers.map(t => d[t].date)) } };
+        }},
+        { name: 'Market History', method: 'GET', path: '/api/market/history?ticker=usd_brl&days=10', run: async () => {
+          const d = await httpGet('/api/market/history?ticker=usd_brl&days=10');
+          if (!Array.isArray(d) || !d.length) throw new Error('histórico vazio');
+          return { detail: d.length + ' pontos' };
+        }},
+        { name: 'Correlations', method: 'GET', path: '/api/correlations', run: async () => {
+          const d = await httpGet('/api/correlations');
+          if (!Array.isArray(d) || !d.length) throw new Error('vazio');
+          return { detail: d.length + ' variáveis' };
+        }},
+        { name: 'Routes (aggregate)', method: 'GET', path: '/api/routes', run: async () => {
+          const d = await httpGet('/api/routes');
+          if (!Array.isArray(d) || !d.length) throw new Error('vazio');
+          return { detail: d.length + ' combinações rota/modal' };
+        }},
+        { name: 'Freight Index', method: 'GET', path: '/api/freight_index?days=30', run: async () => {
+          const d = await httpGet('/api/freight_index?days=30');
+          if (!d.history || !d.history.length) throw new Error('série vazia');
+          const last = d.history[d.history.length - 1];
+          return { detail: 'índice ' + d.last_value + ' (' + d.history.length + ' pontos)', freshness: { source: 'Índice de Frete', date: last.date } };
+        }},
+        { name: 'Route Pairs', method: 'GET', path: '/api/routes/pairs?limit=6', run: async () => {
+          const d = await httpGet('/api/routes/pairs?limit=6');
+          if (!Array.isArray(d) || !d.length) throw new Error('vazio');
+          return { detail: d.length + ' pares de cidades' };
+        }},
+        { name: 'Seasonality', method: 'GET', path: '/api/seasonality', run: async () => {
+          const d = await httpGet('/api/seasonality');
+          if (!Array.isArray(d) || !d.length) throw new Error('vazio');
+          return { detail: d.length + ' rotas mapeadas' };
+        }},
+        { name: 'Risk Radar (rotas)', method: 'GET', path: '/api/risks', run: async () => {
+          const d = await httpGet('/api/risks');
+          if (!Array.isArray(d) || !d.length) throw new Error('vazio');
+          return { detail: d.length + ' rotas, pior: ' + d[0].route + ' (' + d[0].risk_score + '/10)' };
+        }},
+        { name: 'Feature Importance', method: 'GET', path: '/api/feature_importance', run: async () => {
+          const d = await httpGet('/api/feature_importance');
+          if (!Array.isArray(d) || !d.length) throw new Error('vazio');
+          return { detail: 'top: ' + d[0].variable + ' (' + d[0].importance_pct + '%)' };
+        }},
+        { name: 'Port Search', method: 'GET', path: '/api/ports?q=santos&limit=5', run: async () => {
+          const d = await httpGet('/api/ports?q=santos&limit=5');
+          if (!Array.isArray(d) || !d.length) throw new Error('nenhum porto encontrado');
+          return { detail: d.length + ' resultados para "santos"' };
+        }},
+        { name: 'Airport Search', method: 'GET', path: '/api/airports?q=guarulhos&limit=5', run: async () => {
+          const d = await httpGet('/api/airports?q=guarulhos&limit=5');
+          if (!Array.isArray(d) || !d.length) throw new Error('nenhum aeroporto encontrado');
+          return { detail: d.length + ' resultados, ' + d[0].iata + ' — ' + d[0].city };
+        }},
+        { name: 'Corridor Risk', method: 'GET', path: '/api/risk/corridors', run: async () => {
+          const d = await httpGet('/api/risk/corridors');
+          if (!Array.isArray(d) || !d.length) throw new Error('vazio');
+          window._corridorCount = d.length;
+          return { detail: d.length + ' corredores, pior: ' + d[0].corridor + ' (' + d[0].composite_score + ')', freshness: { source: 'Risco por Corredor', date: d[0].last_updated ? d[0].last_updated.slice(0, 10) : null } };
+        }},
+        { name: 'Geopolitical Risk (GPR)', method: 'GET', path: '/api/risk/geopolitical', run: async () => {
+          const d = await httpGet('/api/risk/geopolitical');
+          if (!Array.isArray(d) || !d.length) throw new Error('vazio');
+          const last = d[d.length - 1];
+          return { detail: d.length + ' meses, GPR atual ' + last.gpr_global.toFixed(1), freshness: { source: 'GPR Index', date: last.date } };
+        }},
+        { name: 'Climate Risk', method: 'GET', path: '/api/risk/climate', run: async () => {
+          const d = await httpGet('/api/risk/climate');
+          if (!d.oni_current) throw new Error('ONI ausente');
+          const ports = d.port_weather_latest || [];
+          const dates = ports.map(p => p.date);
+          return { detail: 'ONI ' + d.oni_current.oni_value.toFixed(2) + ' (' + d.oni_current.enso_phase + '), ' + ports.length + ' portos', freshness: { source: 'Clima Portuário (Open-Meteo)', date: mostRecentDate(dates) } };
+        }},
+        { name: 'Commodities', method: 'GET', path: '/api/commodities', run: async () => {
+          const d = await httpGet('/api/commodities');
+          const cats = Object.keys(d);
+          if (!cats.length) throw new Error('vazio');
+          const allDates = [];
+          cats.forEach(c => (d[c] || []).forEach(e => allDates.push(e.latest_date)));
+          return { detail: cats.length + ' categorias', freshness: { source: 'Commodities (yfinance)', date: mostRecentDate(allDates) } };
+        }},
+        { name: 'Freight Rates', method: 'GET', path: '/api/freight_rates', run: async () => {
+          const d = await httpGet('/api/freight_rates');
+          if (!Array.isArray(d) || !d.length) throw new Error('vazio');
+          const scfiDates = d.filter(r => r.scfi_composite !== null).map(r => r.date);
+          const drewryDates = d.filter(r => r.drewry_wci !== null).map(r => r.date);
+          return { detail: d.length + ' linhas (SCFI + Drewry + Air composite)', freshness: [{ source: 'SCFI', date: mostRecentDate(scfiDates) }, { source: 'Drewry WCI', date: mostRecentDate(drewryDates) }] };
+        }},
+        { name: 'Predict (geral)', method: 'POST', path: '/api/predict', run: async () => {
+          const d = await httpPost('/api/predict', { modal: 'Sea', route: 'Atlantic', category: 'Textiles', weight_kg: 1000 });
+          if (typeof d.predicted_cost_usd !== 'number') throw new Error('predicted_cost_usd inválido');
+          return { detail: '$' + Math.round(d.predicted_cost_usd).toLocaleString('en-US') + ' (R²=' + d.model_r2 + ')' };
+        }},
+        { name: 'Optimize', method: 'POST', path: '/api/optimize', run: async () => {
+          const d = await httpPost('/api/optimize', { modal: 'Sea', route: 'Atlantic', category: 'Textiles', weight_kg: 1000 });
+          if (!d.cheapest_route || !Array.isArray(d.pareto_points)) throw new Error('estrutura inválida');
+          return { detail: 'cheapest=' + d.cheapest_route.best_modal + '/' + d.cheapest_route.best_route + ', ' + d.pareto_points.length + ' pontos pareto' };
+        }},
+        { name: 'Predict Maritime', method: 'POST', path: '/api/predict/maritime', run: async () => {
+          const d = await httpPost('/api/predict/maritime', { origin_port: 'Santos', destination_port: 'Shanghai', container_type: "40' Dry", container_qty: 1, gross_weight_kg: 18000, volume_cbm: 50, incoterm: 'FOB', cargo_type: 'Geral', shipment_date: today });
+          if (typeof d.total_usd !== 'number') throw new Error('total_usd inválido');
+          return { detail: '$' + Math.round(d.total_usd).toLocaleString('en-US') + ', rota inferida: ' + d.route_type };
+        }},
+        { name: 'Predict Air', method: 'POST', path: '/api/predict/air', run: async () => {
+          const d = await httpPost('/api/predict/air', { origin_airport_iata: 'GRU', destination_airport_iata: 'JFK', gross_weight_kg: 500, volume_m3: 2.5, cargo_type: 'Geral', incoterm: 'FOB', service_type: 'Standard', shipment_date: today });
+          if (typeof d.total_usd !== 'number') throw new Error('total_usd inválido');
+          return { detail: '$' + Math.round(d.total_usd).toLocaleString('en-US') + ' (' + d.chargeable_weight_kg + ' kg taxável)' };
+        }},
+        { name: 'FRIDAY (Gemini)', method: 'POST', path: '/api/friday', run: async () => {
+          const d = await httpPost('/api/friday', { message: 'teste automatizado do monitor' });
+          if (typeof d.reply !== 'string' || !d.reply) throw new Error('resposta ausente');
+          return { detail: d.configured ? 'Gemini configurado, respondeu OK' : 'endpoint OK (GEMINI_API_KEY não configurada)' };
+        }}
+      ];
+    }
+
+    function mostRecentDate(dates) {
+      const valid = (dates || []).filter(Boolean).sort();
+      return valid.length ? valid[valid.length - 1] : null;
+    }
+
+    function daysSince(dateStr) {
+      if (!dateStr) return null;
+      const then = new Date(dateStr + (dateStr.length <= 10 ? 'T00:00:00' : ''));
+      if (isNaN(then.getTime())) return null;
+      return (Date.now() - then.getTime()) / 86400000;
+    }
+
+    function freshnessColor(days) {
+      if (days === null || days === undefined) return 'gray';
+      if (days < 1) return 'green';
+      if (days <= 7) return 'yellow';
+      return 'red';
+    }
+
+    function renderEndpointRow(test, status, detail, latencyMs) {
+      const cls = status === 'pass' ? 'pass' : (status === 'fail' ? 'fail' : 'pending');
+      const label = status === 'pass' ? 'OK' : (status === 'fail' ? 'FALHA' : 'TESTANDO');
+      return '<tr id="row-' + test.name.replace(/\s+/g, '-') + '">' +
+        '<td><span class="badge ' + cls + '"><span class="dot"></span>' + label + '</span></td>' +
+        '<td>' + test.name + '<div class="path-cell"><code>' + test.path + '</code></div></td>' +
+        '<td><span class="method-tag ' + test.method.toLowerCase() + '">' + test.method + '</span></td>' +
+        '<td class="mono">' + (latencyMs != null ? latencyMs + ' ms' : '--') + '</td>' +
+        '<td class="detail-cell">' + (detail || '') + '</td></tr>';
+    }
+
+    function renderFreshnessGrid(freshnessEntries) {
+      const grid = document.getElementById('freshnessGrid');
+      grid.innerHTML = freshnessEntries.map(function (f) {
+        const days = daysSince(f.date);
+        const color = freshnessColor(days);
+        const ageText = f.date ? (days < 1 ? 'hoje (' + f.date + ')' : Math.floor(days) + ' dia(s) atrás — ' + f.date) : 'sem data disponível';
+        return '<div class="fresh-card glass"><div><div class="name">' + f.source + '</div><div class="age">' + ageText + '</div></div><div class="fresh-dot ' + color + '"></div></div>';
+      }).join('');
+    }
+
+    function updateHealthBanner(results) {
+      const passCount = results.filter(r => r.status === 'pass').length;
+      const failCount = results.filter(r => r.status === 'fail').length;
+      const total = results.length;
+      const latencies = results.filter(r => r.latencyMs != null).map(r => r.latencyMs);
+      const avgLatency = latencies.length ? Math.round(latencies.reduce((a, b) => a + b, 0) / latencies.length) : 0;
+
+      document.getElementById('statPass').textContent = passCount + '/' + total;
+      document.getElementById('statFail').textContent = failCount;
+      document.getElementById('statLatency').textContent = avgLatency;
+      document.getElementById('statLastRun').textContent = new Date().toLocaleTimeString('pt-BR');
+
+      const light = document.getElementById('healthLight');
+      const title = document.getElementById('healthTitle');
+      const subtitle = document.getElementById('healthSubtitle');
+      let level, text, sub;
+      if (failCount === 0) { level = 'green'; text = 'Sistema Saudável'; sub = 'Todos os ' + total + ' endpoints respondendo normalmente.'; }
+      else if (failCount <= 2) { level = 'yellow'; text = 'Degradação Parcial'; sub = failCount + ' de ' + total + ' endpoints com falha — verifique os detalhes abaixo.'; }
+      else { level = 'red'; text = 'Falha Crítica'; sub = failCount + ' de ' + total + ' endpoints indisponíveis — a API pode estar fora do ar.'; }
+      light.className = 'health-light ' + level;
+      title.textContent = text;
+      subtitle.textContent = sub;
+
+      document.getElementById('modelLiveCheck').textContent = passCount > 0 ? 'API ativa' : 'API offline';
+      if (window._corridorCount) document.getElementById('inventoryCorridors').querySelector('.val').textContent = window._corridorCount;
+    }
+
+    async function runAllTests() {
+      const tests = buildEndpointTests();
+      document.getElementById('endpointCountTag').textContent = tests.length + ' endpoints';
+      const tbody = document.getElementById('endpointsBody');
+      tbody.innerHTML = tests.map(t => renderEndpointRow(t, 'pending', 'executando...', null)).join('');
+
+      const results = [];
+      const freshnessEntries = [];
+      for (const test of tests) {
+        const rowId = 'row-' + test.name.replace(/\s+/g, '-');
+        const start = performance.now();
+        try {
+          const outcome = await test.run();
+          const latencyMs = Math.round(performance.now() - start);
+          results.push({ name: test.name, status: 'pass', detail: outcome.detail, latencyMs });
+          document.getElementById(rowId).outerHTML = renderEndpointRow(test, 'pass', outcome.detail, latencyMs);
+          if (outcome.freshness) {
+            const list = Array.isArray(outcome.freshness) ? outcome.freshness : [outcome.freshness];
+            list.forEach(f => freshnessEntries.push(f));
+          }
+        } catch (err) {
+          const latencyMs = Math.round(performance.now() - start);
+          results.push({ name: test.name, status: 'fail', detail: err.message, latencyMs });
+          document.getElementById(rowId).outerHTML = renderEndpointRow(test, 'fail', err.message, latencyMs);
+        }
+      }
+      updateHealthBanner(results);
+      renderFreshnessGrid(freshnessEntries);
+    }
+
+    function resetCountdown() {
+      countdownValue = REFRESH_SECONDS;
+      document.getElementById('countdown').textContent = countdownValue;
+    }
+
+    function tickCountdown() {
+      if (paused) return;
+      countdownValue -= 1;
+      if (countdownValue <= 0) {
+        runAllTests();
+        resetCountdown();
+      } else {
+        document.getElementById('countdown').textContent = countdownValue;
+      }
+    }
+
+    document.getElementById('runNowBtn').addEventListener('click', function () {
+      runAllTests();
+      resetCountdown();
+    });
+
+    document.getElementById('pauseBtn').addEventListener('click', function () {
+      paused = !paused;
+      this.textContent = paused ? 'Retomar' : 'Pausar';
+    });
+
+    (function init() {
+      runAllTests();
+      resetCountdown();
+      countdownTimer = setInterval(tickCountdown, 1000);
+    })();
+  </script>
+</body>
+</html>
